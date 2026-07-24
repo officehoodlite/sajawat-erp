@@ -1,0 +1,550 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LotStatus {
+  PENDING
+  IN_PRODUCTION
+  COMPLETED
+}
+
+enum ProductionStage {
+  CARPENTRY
+  FOR_PAINT
+  IN_PAINT
+  IN_STOCK
+  READY
+}
+
+enum WorkerEntryType {
+  MANUFACTURING
+  PACKING
+}
+
+enum Unit {
+  PCS
+  KG
+  LTR
+  ML
+  MTR
+  SQFT
+  BOX
+  ROLL
+  SHEET
+}
+
+model Supplier {
+  id                String             @id @default(cuid())
+  name              String             @unique
+  contactNumber     String?
+  address           String?
+  gstNumber         String?
+  boardPurchases    BoardInventory[]
+  paintPurchases    PaintPurchase[]
+  hardwarePurchases HardwarePurchase[]
+  packingPurchases  PackingPurchase[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model Board {
+  id           String           @id @default(cuid())
+  materialName String           @unique
+  thicknesses  BoardThickness[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model BoardThickness {
+  id                          String                         @id @default(cuid())
+  boardId                     String
+  thickness                   String
+  board                       Board                          @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  inventories                 BoardInventory[]
+  actualBoardEntries          LotActualBoardEntry[]
+  productModelBoardPresets    ProductModelBoardPreset[]
+  manufacturingBoardPresets   ManufacturingModelBoardPreset[]
+  createdAt                   DateTime                       @default(now())
+  updatedAt                   DateTime                       @updatedAt
+
+  @@unique([boardId, thickness])
+}
+
+model BoardInventory {
+  id               String                    @id @default(cuid())
+  boardThicknessId String
+  purchaseSqft     Decimal                   @db.Decimal(18, 6)
+  remainingSqft    Decimal                   @db.Decimal(18, 6)
+  purchaseDate     DateTime
+  supplierId       String?
+  rate             Decimal?                  @db.Decimal(18, 6)
+  boardThickness   BoardThickness            @relation(fields: [boardThicknessId], references: [id], onDelete: Cascade)
+  supplier         Supplier?                 @relation(fields: [supplierId], references: [id])
+  boardEntries     ManufacturingBoardEntry[]
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+}
+
+model PaintProduct {
+  id                         String                          @id @default(cuid())
+  name                       String                          @unique
+  brand                      String?
+  unit                       Unit
+  description                String?
+  isActive                   Boolean                         @default(true)
+  remainingStock             Decimal                         @default(0) @db.Decimal(18, 6)
+  purchases                  PaintPurchase[]
+  consumptions               PaintConsumptionLog[]
+  paintEntries               ManufacturingPaintEntry[]
+  productModelPaintPresets   ProductModelPaintPreset[]
+  manufacturingPaintPresets  ManufacturingModelPaintPreset[]
+  createdAt                  DateTime                        @default(now())
+  updatedAt                  DateTime                        @updatedAt
+}
+
+model PaintPurchase {
+  id                String       @id @default(cuid())
+  productId         String
+  supplierId        String?
+  invoiceNumber     String?
+  quantity          Decimal      @db.Decimal(18, 6)
+  remainingQuantity Decimal      @db.Decimal(18, 6)
+  rate              Decimal?     @db.Decimal(18, 6)
+  purchaseDate      DateTime
+  remarks           String?
+  product           PaintProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier          Supplier?    @relation(fields: [supplierId], references: [id])
+  createdAt         DateTime     @default(now())
+
+  @@index([productId])
+  @@index([purchaseDate])
+}
+
+model PaintConsumptionLog {
+  id             String             @id @default(cuid())
+  productId      String
+  lotId          String
+  modelId        String
+  quantity       Decimal            @db.Decimal(18, 6)
+  remainingAfter Decimal            @db.Decimal(18, 6)
+  consumedAt     DateTime           @default(now())
+  product        PaintProduct       @relation(fields: [productId], references: [id])
+  lot            ManufacturingLot   @relation(fields: [lotId], references: [id])
+  model          ManufacturingModel @relation(fields: [modelId], references: [id])
+
+  @@index([productId])
+  @@index([consumedAt])
+  @@index([lotId])
+}
+
+model HardwareProduct {
+  id                            String                             @id @default(cuid())
+  name                          String                             @unique
+  brand                         String?
+  unit                          Unit
+  description                   String?
+  isActive                      Boolean                            @default(true)
+  remainingStock                Decimal                            @default(0) @db.Decimal(18, 6)
+  purchases                     HardwarePurchase[]
+  consumptions                  HardwareConsumptionLog[]
+  hardwareEntries               ManufacturingHardwareEntry[]
+  productModelHardwarePresets   ProductModelHardwarePreset[]
+  manufacturingHardwarePresets  ManufacturingModelHardwarePreset[]
+  createdAt                     DateTime                           @default(now())
+  updatedAt                     DateTime                           @updatedAt
+}
+
+model HardwarePurchase {
+  id                String          @id @default(cuid())
+  productId         String
+  supplierId        String?
+  invoiceNumber     String?
+  quantity          Decimal         @db.Decimal(18, 6)
+  remainingQuantity Decimal         @db.Decimal(18, 6)
+  rate              Decimal?        @db.Decimal(18, 6)
+  purchaseDate      DateTime
+  remarks           String?
+  product           HardwareProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier          Supplier?       @relation(fields: [supplierId], references: [id])
+  createdAt         DateTime        @default(now())
+
+  @@index([productId])
+  @@index([purchaseDate])
+}
+
+model HardwareConsumptionLog {
+  id             String             @id @default(cuid())
+  productId      String
+  lotId          String
+  modelId        String
+  quantity       Decimal            @db.Decimal(18, 6)
+  remainingAfter Decimal            @db.Decimal(18, 6)
+  consumedAt     DateTime           @default(now())
+  product        HardwareProduct    @relation(fields: [productId], references: [id])
+  lot            ManufacturingLot   @relation(fields: [lotId], references: [id])
+  model          ManufacturingModel @relation(fields: [modelId], references: [id])
+
+  @@index([productId])
+  @@index([consumedAt])
+  @@index([lotId])
+}
+
+model PackingProduct {
+  id                           String                            @id @default(cuid())
+  name                         String                            @unique
+  brand                        String?
+  unit                         Unit
+  description                  String?
+  isActive                     Boolean                           @default(true)
+  remainingStock               Decimal                           @default(0) @db.Decimal(18, 6)
+  purchases                    PackingPurchase[]
+  consumptions                 PackingConsumptionLog[]
+  packingEntries               ManufacturingPackingEntry[]
+  productModelPackingPresets   ProductModelPackingPreset[]
+  manufacturingPackingPresets  ManufacturingModelPackingPreset[]
+  createdAt                    DateTime                          @default(now())
+  updatedAt                    DateTime                          @updatedAt
+}
+
+model PackingPurchase {
+  id                String         @id @default(cuid())
+  productId         String
+  supplierId        String?
+  invoiceNumber     String?
+  quantity          Decimal        @db.Decimal(18, 6)
+  remainingQuantity Decimal        @db.Decimal(18, 6)
+  rate              Decimal?       @db.Decimal(18, 6)
+  purchaseDate      DateTime
+  remarks           String?
+  product           PackingProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier          Supplier?      @relation(fields: [supplierId], references: [id])
+  createdAt         DateTime       @default(now())
+
+  @@index([productId])
+  @@index([purchaseDate])
+}
+
+model PackingConsumptionLog {
+  id             String             @id @default(cuid())
+  productId      String
+  lotId          String
+  modelId        String
+  quantity       Decimal            @db.Decimal(18, 6)
+  remainingAfter Decimal            @db.Decimal(18, 6)
+  consumedAt     DateTime           @default(now())
+  product        PackingProduct     @relation(fields: [productId], references: [id])
+  lot            ManufacturingLot   @relation(fields: [lotId], references: [id])
+  model          ManufacturingModel @relation(fields: [modelId], references: [id])
+
+  @@index([productId])
+  @@index([consumedAt])
+  @@index([lotId])
+}
+
+model Product {
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  models              ProductModel[]
+  manufacturingModels ManufacturingModel[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model ProductModel {
+  id                  String                        @id @default(cuid())
+  productId           String
+  modelName           String
+  partCount           Int                           @default(1)
+  product             Product                       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  manufacturingModels ManufacturingModel[]
+  boardPresets        ProductModelBoardPreset[]
+  paintPresets        ProductModelPaintPreset[]
+  hardwarePresets     ProductModelHardwarePreset[]
+  packingPresets      ProductModelPackingPreset[]
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+
+  @@unique([productId, modelName])
+}
+
+model ProductModelBoardPreset {
+  id               String         @id @default(cuid())
+  productModelId   String
+  boardThicknessId String
+  productModel     ProductModel   @relation(fields: [productModelId], references: [id], onDelete: Cascade)
+  boardThickness   BoardThickness @relation(fields: [boardThicknessId], references: [id])
+  createdAt        DateTime       @default(now())
+
+  @@unique([productModelId, boardThicknessId])
+  @@index([productModelId])
+}
+
+model ProductModelPaintPreset {
+  id             String       @id @default(cuid())
+  productModelId String
+  paintProductId String
+  productModel   ProductModel @relation(fields: [productModelId], references: [id], onDelete: Cascade)
+  paintProduct   PaintProduct @relation(fields: [paintProductId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@unique([productModelId, paintProductId])
+  @@index([productModelId])
+}
+
+model ProductModelHardwarePreset {
+  id                String          @id @default(cuid())
+  productModelId    String
+  hardwareProductId String
+  productModel      ProductModel    @relation(fields: [productModelId], references: [id], onDelete: Cascade)
+  hardwareProduct   HardwareProduct @relation(fields: [hardwareProductId], references: [id])
+  createdAt         DateTime        @default(now())
+
+  @@unique([productModelId, hardwareProductId])
+  @@index([productModelId])
+}
+
+model ProductModelPackingPreset {
+  id               String         @id @default(cuid())
+  productModelId   String
+  packingProductId String
+  productModel     ProductModel   @relation(fields: [productModelId], references: [id], onDelete: Cascade)
+  packingProduct   PackingProduct @relation(fields: [packingProductId], references: [id])
+  createdAt        DateTime       @default(now())
+
+  @@unique([productModelId, packingProductId])
+  @@index([productModelId])
+}
+
+model ManufacturingLot {
+  id                   String                    @id @default(cuid())
+  lotNumber            String                    @unique
+  createdAt            DateTime                  @default(now())
+  remarks              String?
+  status               LotStatus                 @default(PENDING)
+  stockDeducted        Boolean                   @default(false)
+  models               ManufacturingModel[]
+  paintConsumptions    PaintConsumptionLog[]
+  hardwareConsumptions HardwareConsumptionLog[]
+  packingConsumptions  PackingConsumptionLog[]
+  actualBoardEntries   LotActualBoardEntry[]
+  workerRates          LotWorkerRates?
+  workerEntries        LotWorkerEntry[]
+  productionEntries    ProductionEntry[]
+  updatedAt            DateTime                  @updatedAt
+}
+
+model ManufacturingModel {
+  id                   String                              @id @default(cuid())
+  lotId                String
+  productId            String
+  catalogModelId       String
+  modelName            String
+  quantity             Int
+  partCount            Int                                 @default(1)
+  polishLaborPerQty    Decimal?                            @db.Decimal(18, 6)
+  lot                  ManufacturingLot                    @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  product              Product                             @relation(fields: [productId], references: [id])
+  catalogModel         ProductModel                        @relation(fields: [catalogModelId], references: [id])
+  boardEntries         ManufacturingBoardEntry[]
+  paintEntries         ManufacturingPaintEntry[]
+  hardwareEntries      ManufacturingHardwareEntry[]
+  packingEntries       ManufacturingPackingEntry[]
+  boardPresets         ManufacturingModelBoardPreset[]
+  paintPresets         ManufacturingModelPaintPreset[]
+  hardwarePresets      ManufacturingModelHardwarePreset[]
+  packingPresets       ManufacturingModelPackingPreset[]
+  paintConsumptions    PaintConsumptionLog[]
+  hardwareConsumptions HardwareConsumptionLog[]
+  packingConsumptions  PackingConsumptionLog[]
+  productionEntries    ProductionEntry[]
+  createdAt            DateTime                            @default(now())
+  updatedAt            DateTime                            @updatedAt
+
+  @@index([catalogModelId])
+}
+
+model ManufacturingModelBoardPreset {
+  id               String             @id @default(cuid())
+  modelId          String
+  boardThicknessId String
+  model            ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  boardThickness   BoardThickness     @relation(fields: [boardThicknessId], references: [id])
+  createdAt        DateTime           @default(now())
+
+  @@unique([modelId, boardThicknessId])
+  @@index([modelId])
+}
+
+model ManufacturingModelPaintPreset {
+  id             String             @id @default(cuid())
+  modelId        String
+  paintProductId String
+  model          ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  paintProduct   PaintProduct       @relation(fields: [paintProductId], references: [id])
+  createdAt      DateTime           @default(now())
+
+  @@unique([modelId, paintProductId])
+  @@index([modelId])
+}
+
+model ManufacturingModelHardwarePreset {
+  id                String             @id @default(cuid())
+  modelId           String
+  hardwareProductId String
+  model             ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  hardwareProduct   HardwareProduct    @relation(fields: [hardwareProductId], references: [id])
+  createdAt         DateTime           @default(now())
+
+  @@unique([modelId, hardwareProductId])
+  @@index([modelId])
+}
+
+model ManufacturingModelPackingPreset {
+  id               String             @id @default(cuid())
+  modelId          String
+  packingProductId String
+  model            ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  packingProduct   PackingProduct     @relation(fields: [packingProductId], references: [id])
+  createdAt        DateTime           @default(now())
+
+  @@unique([modelId, packingProductId])
+  @@index([modelId])
+}
+
+model ProductionEntry {
+  id                   String             @id @default(cuid())
+  lotId                String
+  manufacturingModelId String
+  parts                String[]
+  details              String
+  statusText           String?
+  description          String?
+  stage                ProductionStage    @default(CARPENTRY)
+  workDate             DateTime
+  /// Initial quantity for this entry (capacity consumed per selected part).
+  carpentryQty         Int
+  paintingReadyQty     Int                @default(0)
+  paintingStatusQty    Int                @default(0)
+  completedReadyQty    Int                @default(0)
+  completedOutQty      Int                @default(0)
+  lot                  ManufacturingLot   @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  manufacturingModel   ManufacturingModel @relation(fields: [manufacturingModelId], references: [id], onDelete: Cascade)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([lotId])
+  @@index([manufacturingModelId])
+  @@index([workDate])
+}
+
+model ManufacturingBoardEntry {
+  id               String             @id @default(cuid())
+  modelId          String
+  boardInventoryId String
+  length           Decimal            @db.Decimal(16, 6)
+  width            Decimal            @db.Decimal(16, 6)
+  quantity         Int
+  sqftPerPiece     Decimal            @db.Decimal(18, 6)
+  totalSqft        Decimal            @db.Decimal(18, 6)
+  model            ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  boardInventory   BoardInventory     @relation(fields: [boardInventoryId], references: [id])
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model ManufacturingPaintEntry {
+  id             String             @id @default(cuid())
+  modelId        String
+  paintProductId String
+  quantity       Decimal            @db.Decimal(18, 6)
+  model          ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  paintProduct   PaintProduct       @relation(fields: [paintProductId], references: [id])
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model ManufacturingHardwareEntry {
+  id                String             @id @default(cuid())
+  modelId           String
+  hardwareProductId String
+  quantity          Decimal            @db.Decimal(18, 6)
+  model             ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  hardwareProduct   HardwareProduct    @relation(fields: [hardwareProductId], references: [id])
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model ManufacturingPackingEntry {
+  id               String             @id @default(cuid())
+  modelId          String
+  packingProductId String
+  quantity         Decimal            @db.Decimal(18, 6)
+  model            ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  packingProduct   PackingProduct     @relation(fields: [packingProductId], references: [id])
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model LotActualBoardEntry {
+  id               String           @id @default(cuid())
+  lotId            String
+  boardThicknessId String
+  length           Decimal          @default(0) @db.Decimal(16, 6)
+  width            Decimal          @default(0) @db.Decimal(16, 6)
+  quantity         Int              @default(0)
+  sqftIn           Decimal          @default(0) @db.Decimal(18, 6)
+  sqftOut          Decimal          @default(0) @db.Decimal(18, 6)
+  totalSqft        Decimal          @db.Decimal(18, 6)
+  lot              ManufacturingLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  boardThickness   BoardThickness   @relation(fields: [boardThicknessId], references: [id])
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([lotId])
+  @@index([boardThicknessId])
+}
+
+model LotWorkerRates {
+  lotId                 String           @id
+  mfgMistriRate         Decimal          @default(0) @db.Decimal(18, 6)
+  mfgHalfMistriRate     Decimal          @default(0) @db.Decimal(18, 6)
+  mfgHelperRate         Decimal          @default(0) @db.Decimal(18, 6)
+  packingMistriRate     Decimal          @default(0) @db.Decimal(18, 6)
+  packingHalfMistriRate Decimal          @default(0) @db.Decimal(18, 6)
+  packingHelperRate     Decimal          @default(0) @db.Decimal(18, 6)
+  lot                   ManufacturingLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+}
+
+model LotWorkerEntry {
+  id          String           @id @default(cuid())
+  lotId       String
+  type        WorkerEntryType
+  workDate    DateTime
+  workerNames String[]
+  machinery   String?
+  mistri      Int              @default(0)
+  halfMistri  Int              @default(0)
+  helper      Int              @default(0)
+  hours       Int
+  packQty     Int?
+  lot         ManufacturingLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([lotId])
+}
+
+model AuthSession {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([expiresAt])
+}

@@ -1,0 +1,822 @@
+import { prisma } from "@/lib/prisma";
+import { CACHE_KEYS, cacheDel } from "@/lib/redis";
+import { roundDecimal } from "@/lib/decimal";
+import { totalForModelQty, materialEntryStockQty } from "@/lib/model-consumption";
+import {
+  adjustMaterialStock,
+  applyBoardThicknessNetDelta,
+  releaseMaterialStock,
+  reserveMaterialStock,
+  type MaterialType,
+} from "@/lib/manufacturing-stock";
+import { toNumber } from "@/lib/mappers";
+import { calcActualBoardTotalSqft, calcBoardEntrySqft } from "@/utils/board-calculations";
+import { mapLotDetail } from "@/repositories/manufacturing/lot.repository";
+import { lotActualBoardRepository } from "@/repositories/manufacturing/lot-actual-board.repository";
+import { findLotSummaryById } from "@/repositories/manufacturing/model.repository";
+import { lotWorkerRepository } from "@/repositories/manufacturing/lot-worker.repository";
+import type {
+  CreateBoardEntryInput,
+  CreateLotActualBoardEntryInput,
+  CreateLotWorkerEntryInput,
+  CreateModelInput,
+  CreateLotInput,
+  UpdateLotInput,
+  UpdateLotWorkerEntryInput,
+  UpdateLotWorkerRatesInput,
+  UpdatePolishLaborInput,
+} from "@/validators/manufacturing";
+
+async function invalidateMaterialOptions(type: MaterialType) {
+  const key =
+    type === "paint"
+      ? CACHE_KEYS.paintOptions
+      : type === "hardware"
+        ? CACHE_KEYS.hardwareOptions
+        : CACHE_KEYS.packingOptions;
+  await cacheDel(key);
+}
+
+async function invalidateBoardCaches() {
+  await cacheDel(CACHE_KEYS.boardOptions);
+}
+
+const lotInclude = {
+  models: {
+    orderBy: { createdAt: "asc" as const },
+    include: {
+      product: true,
+      boardEntries: {
+        include: {
+          boardInventory: {
+            include: {
+              boardThickness: { include: { board: true } },
+            },
+          },
+        },
+      },
+      paintEntries: { include: { paintProduct: true } },
+      hardwareEntries: { include: { hardwareProduct: true } },
+      packingEntries: { include: { packingProduct: true } },
+      boardPresets: {
+        include: { boardThickness: { include: { board: true } } },
+        orderBy: { createdAt: "asc" as const },
+      },
+      paintPresets: {
+        include: { paintProduct: true },
+        orderBy: { createdAt: "asc" as const },
+      },
+      hardwarePresets: {
+        include: { hardwareProduct: true },
+        orderBy: { createdAt: "asc" as const },
+      },
+      packingPresets: {
+        include: { packingProduct: true },
+        orderBy: { createdAt: "asc" as const },
+      },
+    },
+  },
+};
+
+export class ManufacturingService {
+  async createLot(input: CreateLotInput) {
+    return prisma.manufacturingLot
+      .create({
+        data: input,
+        include: lotInclude,
+      })
+      .then(mapLotDetail);
+  }
+
+  async updateLot(id: string, input: UpdateLotInput) {
+    const existing = await prisma.manufacturingLot.findUnique({ where: { id } });
+    if (!existing) throw new Error("Lot not found");
+    return prisma.manufacturingLot
+      .update({
+        where: { id },
+        data: input,
+        include: lotInclude,
+      })
+      .then(mapLotDetail);
+  }
+
+  async deleteLot(id: string) {
+    const lot = await prisma.manufacturingLot.findUnique({
+      where: { id },
+      include: { _count: { select: { models: true } } },
+    });
+    if (!lot) throw new Error("Lot not found");
+    if (lot._count.models > 0) throw new Error("Cannot delete lot with models");
+    await prisma.manufacturingLot.delete({ where: { id } });
+  }
+
+  async createModel(lotId: string, input: CreateModelInput) {
+    const lot = await prisma.manufacturingLot.findUnique({ where: { id: lotId } });
+    if (!lot) throw new Error("Lot not found");
+
+    const catalogModel = await prisma.productModel.findFirst({
+      where: { id: input.catalogModelId, productId: input.productId },
+      include: {
+        product: true,
+        boardPresets: true,
+        paintPresets: true,
+        hardwarePresets: true,
+        packingPresets: true,
+      },
+    });
+    if (!catalogModel) throw new Error("Catalog model not found for selected product");
+
+    await prisma.$transaction(async (tx) => {
+      const model = await tx.manufacturingModel.create({
+        data: {
+          lotId,
+          productId: input.productId,
+          catalogModelId: input.catalogModelId,
+          modelName: catalogModel.modelName,
+          quantity: input.quantity,
+          partCount: catalogModel.partCount,
+        },
+      });
+
+      if (catalogModel.boardPresets.length > 0) {
+        await tx.manufacturingModelBoardPreset.createMany({
+          data: catalogModel.boardPresets.map((p) => ({
+            modelId: model.id,
+            boardThicknessId: p.boardThicknessId,
+          })),
+        });
+      }
+      if (catalogModel.paintPresets.length > 0) {
+        await tx.manufacturingModelPaintPreset.createMany({
+          data: catalogModel.paintPresets.map((p) => ({
+            modelId: model.id,
+            paintProductId: p.paintProductId,
+          })),
+        });
+      }
+      if (catalogModel.hardwarePresets.length > 0) {
+        await tx.manufacturingModelHardwarePreset.createMany({
+          data: catalogModel.hardwarePresets.map((p) => ({
+            modelId: model.id,
+            hardwareProductId: p.hardwareProductId,
+          })),
+        });
+      }
+      if (catalogModel.packingPresets.length > 0) {
+        await tx.manufacturingModelPackingPreset.createMany({
+          data: catalogModel.packingPresets.map((p) => ({
+            modelId: model.id,
+            packingProductId: p.packingProductId,
+          })),
+        });
+      }
+    });
+
+    const updated = await prisma.manufacturingLot.findUnique({
+      where: { id: lotId },
+      include: lotInclude,
+    });
+    return mapLotDetail(updated!);
+  }
+
+  async updateModel(modelId: string, input: { quantity?: number }) {
+    const model = await prisma.manufacturingModel.findUnique({
+      where: { id: modelId },
+      include: { lot: true },
+    });
+    if (!model) throw new Error("Model not found");
+
+    await prisma.manufacturingModel.update({ where: { id: modelId }, data: input });
+
+    const updated = await prisma.manufacturingLot.findUnique({
+      where: { id: model.lotId },
+      include: lotInclude,
+    });
+    return mapLotDetail(updated!);
+  }
+
+  async updatePolishLabor(modelId: string, input: UpdatePolishLaborInput) {
+    const model = await prisma.manufacturingModel.findUnique({
+      where: { id: modelId },
+      select: { lotId: true },
+    });
+    if (!model) throw new Error("Model not found");
+
+    await prisma.manufacturingModel.update({
+      where: { id: modelId },
+      data: { polishLaborPerQty: input.polishLaborPerQty },
+    });
+
+    const summary = await findLotSummaryById(model.lotId);
+    if (!summary) throw new Error("Lot not found");
+    return summary;
+  }
+
+  async deleteModel(modelId: string) {
+    const model = await prisma.manufacturingModel.findUnique({
+      where: { id: modelId },
+      include: { lot: true },
+    });
+    if (!model) throw new Error("Model not found");
+
+    await prisma.manufacturingModel.delete({ where: { id: modelId } });
+
+    const updated = await prisma.manufacturingLot.findUnique({
+      where: { id: model.lotId },
+      include: lotInclude,
+    });
+    return mapLotDetail(updated!);
+  }
+
+  async createBoardEntry(modelId: string, input: CreateBoardEntryInput) {
+    const model = await prisma.manufacturingModel.findUnique({
+      where: { id: modelId },
+      include: { lot: true },
+    });
+    if (!model) throw new Error("Model not found");
+
+    const { sqftPerPiece, totalSqft } = calcBoardEntrySqft(
+      input.length,
+      input.width,
+      input.quantity
+    );
+    const total = roundDecimal(totalSqft);
+
+    // Planning only — board stock is adjusted via admin actual usage on the lot summary tab.
+    await prisma.$transaction(async (tx) => {
+      await tx.manufacturingBoardEntry.create({
+        data: {
+          modelId,
+          boardInventoryId: input.boardInventoryId,
+          length: roundDecimal(input.length),
+          width: roundDecimal(input.width),
+          quantity: input.quantity,
+          sqftPerPiece: roundDecimal(sqftPerPiece),
+          totalSqft: total,
+        },
+      });
+    });
+
+    const updated = await prisma.manufacturingLot.findUnique({
+      where: { id: model.lotId },
+      include: lotInclude,
+    });
+    return mapLotDetail(updated!);
+  }
+
+  async updateBoardEntry(entryId: string, input: Partial<CreateBoardEntryInput>) {
+    const entry = await prisma.manufacturingBoardEntry.findUnique({
+      where: { id: entryId },
+      include: { model: { include: { lot: true } } },
+    });
+    if (!entry) throw new Error("Board entry not found");
+
+    const length = roundDecimal(input.length ?? toNumber(entry.length));
+    const width = roundDecimal(input.width ?? toNumber(entry.width));
+    const quantity = input.quantity ?? entry.quantity;
+    const { sqftPerPiece, totalSqft } = calcBoardEntrySqft(length, width, quantity);
+    const newTotal = roundDecimal(totalSqft);
+    const nextInventoryId = input.boardInventoryId ?? entry.boardInventoryId;
+
+    await prisma.$transaction(async (tx) => {
+      // Planning only — no board stock change.
+      await tx.manufacturingBoardEntry.update({
+        where: { id: entryId },
+        data: {
+          ...input,
+          boardInventoryId: nextInventoryId,
+          length,
+          width,
+          quantity,
+          sqftPerPiece: roundDecimal(sqftPerPiece),
+          totalSqft: newTotal,
+        },
+      });
+    });
+
+    const updated = await prisma.manufacturingLot.findUnique({
+      where: { id: entry.model.lotId },
+      include: lotInclude,
+    });
+    return mapLotDetail(updated!);
+  }
+
+  async deleteBoardEntry(entryId: string) {
+    const entry = await prisma.manufacturingBoardEntry.findUnique({
+      where: { id: entryId },
+      include: { model: { include: { lot: true } } },
+    });
+    if (!entry) throw new Error("Board entry not found");
+
+    await prisma.$transaction(async (tx) => {
+      // Planning only — no board stock change.
+      await tx.manufacturingBoardEntry.delete({ where: { id: entryId } });
+    });
+
+    const updated = await prisma.manufacturingLot.findUnique({
+      where: { id: entry.model.lotId },
+      include: lotInclude,
+    });
+    return mapLotDetail(updated!);
+  }
+
+  async createLotActualBoardEntry(lotId: string, input: CreateLotActualBoardEntryInput) {
+    const lot = await prisma.manufacturingLot.findUnique({ where: { id: lotId } });
+    if (!lot) throw new Error("Lot not found");
+
+    const thickness = await prisma.boardThickness.findUnique({
+      where: { id: input.boardThicknessId },
+    });
+    if (!thickness) throw new Error("Board thickness not found");
+
+    const length = roundDecimal(input.length);
+    const width = roundDecimal(input.width);
+    const quantity = input.quantity;
+    const sqftIn = roundDecimal(input.sqftIn);
+    const sqftOut = roundDecimal(input.sqftOut);
+    const total = calcActualBoardTotalSqft(length, width, quantity, sqftIn, sqftOut);
+
+    await prisma.$transaction(async (tx) => {
+      await applyBoardThicknessNetDelta(tx, input.boardThicknessId, total);
+      await tx.lotActualBoardEntry.create({
+        data: {
+          lotId,
+          boardThicknessId: input.boardThicknessId,
+          length,
+          width,
+          quantity,
+          sqftIn,
+          sqftOut,
+          totalSqft: total,
+        },
+      });
+    });
+
+    await invalidateBoardCaches();
+
+    const summary = await findLotSummaryById(lotId);
+    if (!summary) throw new Error("Lot not found");
+    return summary;
+  }
+
+  async updateLotActualBoardEntry(
+    lotId: string,
+    entryId: string,
+    input: Partial<CreateLotActualBoardEntryInput>
+  ) {
+    const entry = await prisma.lotActualBoardEntry.findUnique({
+      where: { id: entryId },
+      include: { lot: true },
+    });
+    if (!entry || entry.lotId !== lotId) throw new Error("Entry not found");
+
+    const length = roundDecimal(input.length ?? toNumber(entry.length));
+    const width = roundDecimal(input.width ?? toNumber(entry.width));
+    const quantity = input.quantity ?? entry.quantity;
+    const sqftIn = roundDecimal(input.sqftIn ?? toNumber(entry.sqftIn));
+    const sqftOut = roundDecimal(input.sqftOut ?? toNumber(entry.sqftOut));
+    const newTotal = calcActualBoardTotalSqft(length, width, quantity, sqftIn, sqftOut);
+    const oldTotal = roundDecimal(toNumber(entry.totalSqft));
+    const nextThicknessId = input.boardThicknessId ?? entry.boardThicknessId;
+
+    await prisma.$transaction(async (tx) => {
+      if (nextThicknessId === entry.boardThicknessId) {
+        await applyBoardThicknessNetDelta(
+          tx,
+          entry.boardThicknessId,
+          roundDecimal(newTotal - oldTotal)
+        );
+      } else {
+        await applyBoardThicknessNetDelta(tx, entry.boardThicknessId, -oldTotal);
+        await applyBoardThicknessNetDelta(tx, nextThicknessId, newTotal);
+      }
+
+      await tx.lotActualBoardEntry.update({
+        where: { id: entryId },
+        data: {
+          boardThicknessId: nextThicknessId,
+          length,
+          width,
+          quantity,
+          sqftIn,
+          sqftOut,
+          totalSqft: newTotal,
+        },
+      });
+    });
+
+    await invalidateBoardCaches();
+
+    const summary = await findLotSummaryById(entry.lotId);
+    if (!summary) throw new Error("Lot not found");
+    return summary;
+  }
+
+  async deleteLotActualBoardEntry(lotId: string, entryId: string) {
+    const entry = await prisma.lotActualBoardEntry.findUnique({
+      where: { id: entryId },
+      include: { lot: true },
+    });
+    if (!entry || entry.lotId !== lotId) throw new Error("Entry not found");
+
+    const oldTotal = roundDecimal(toNumber(entry.totalSqft));
+
+    await prisma.$transaction(async (tx) => {
+      await applyBoardThicknessNetDelta(tx, entry.boardThicknessId, -oldTotal);
+      await tx.lotActualBoardEntry.delete({ where: { id: entryId } });
+    });
+
+    await invalidateBoardCaches();
+
+    const summary = await findLotSummaryById(entry.lotId);
+    if (!summary) throw new Error("Lot not found");
+    return summary;
+  }
+
+  async getLotWorkerRates(lotId: string) {
+    const lot = await prisma.manufacturingLot.findUnique({ where: { id: lotId } });
+    if (!lot) throw new Error("Lot not found");
+    return lotWorkerRepository.findRates(lotId);
+  }
+
+  async updateLotWorkerRates(lotId: string, input: UpdateLotWorkerRatesInput) {
+    await lotWorkerRepository.upsertRates(lotId, input);
+    const summary = await findLotSummaryById(lotId);
+    if (!summary) throw new Error("Lot not found");
+    return summary;
+  }
+
+  async getLotWorkerEntries(lotId: string) {
+    const lot = await prisma.manufacturingLot.findUnique({ where: { id: lotId } });
+    if (!lot) throw new Error("Lot not found");
+    return lotWorkerRepository.findEntries(lotId);
+  }
+
+  async createLotWorkerEntry(lotId: string, input: CreateLotWorkerEntryInput) {
+    await lotWorkerRepository.createEntry(lotId, input);
+    const summary = await findLotSummaryById(lotId);
+    if (!summary) throw new Error("Lot not found");
+    return summary;
+  }
+
+  async updateLotWorkerEntry(
+    lotId: string,
+    entryId: string,
+    input: UpdateLotWorkerEntryInput
+  ) {
+    const entry = await prisma.lotWorkerEntry.findUnique({
+      where: { id: entryId },
+      select: { lotId: true },
+    });
+    if (!entry || entry.lotId !== lotId) throw new Error("Entry not found");
+    await lotWorkerRepository.updateEntry(entryId, input);
+    const summary = await findLotSummaryById(entry.lotId);
+    if (!summary) throw new Error("Lot not found");
+    return summary;
+  }
+
+  async deleteLotWorkerEntry(lotId: string, entryId: string) {
+    const entry = await prisma.lotWorkerEntry.findUnique({
+      where: { id: entryId },
+      select: { lotId: true },
+    });
+    if (!entry || entry.lotId !== lotId) throw new Error("Entry not found");
+    await lotWorkerRepository.deleteEntry(entryId);
+    const summary = await findLotSummaryById(entry.lotId);
+    if (!summary) throw new Error("Lot not found");
+    return summary;
+  }
+
+  async createPaintEntry(modelId: string, paintProductId: string, quantity: number) {
+    return this.createMaterialEntry("paint", modelId, paintProductId, quantity);
+  }
+
+  async updatePaintEntry(entryId: string, paintProductId: string, quantity: number) {
+    return this.updateMaterialEntry("paint", entryId, paintProductId, quantity);
+  }
+
+  async createHardwareEntry(modelId: string, hardwareProductId: string, quantity: number) {
+    return this.createMaterialEntry("hardware", modelId, hardwareProductId, quantity);
+  }
+
+  async updateHardwareEntry(entryId: string, hardwareProductId: string, quantity: number) {
+    return this.updateMaterialEntry("hardware", entryId, hardwareProductId, quantity);
+  }
+
+  async createPackingEntry(modelId: string, packingProductId: string, quantity: number) {
+    return this.createMaterialEntry("packing", modelId, packingProductId, quantity);
+  }
+
+  async updatePackingEntry(entryId: string, packingProductId: string, quantity: number) {
+    return this.updateMaterialEntry("packing", entryId, packingProductId, quantity);
+  }
+
+  private async createMaterialEntry(
+    type: MaterialType,
+    modelId: string,
+    productId: string,
+    quantity: number
+  ) {
+    const model = await prisma.manufacturingModel.findUnique({
+      where: { id: modelId },
+      include: { lot: true },
+    });
+    if (!model) throw new Error("Model not found");
+
+    const label = type === "paint" ? "Paint product" : type === "hardware" ? "Hardware product" : "Packing product";
+
+    const qty = roundDecimal(quantity);
+    const stockQty = materialEntryStockQty(type, qty, model.quantity);
+
+    await prisma.$transaction(async (tx) => {
+      await reserveMaterialStock(tx, type, productId, stockQty, label);
+
+      if (type === "paint") {
+        await tx.manufacturingPaintEntry.create({
+          data: { modelId, paintProductId: productId, quantity: qty },
+        });
+      } else if (type === "hardware") {
+        await tx.manufacturingHardwareEntry.create({
+          data: { modelId, hardwareProductId: productId, quantity: qty },
+        });
+      } else {
+        await tx.manufacturingPackingEntry.create({
+          data: { modelId, packingProductId: productId, quantity: qty },
+        });
+      }
+    });
+
+    await invalidateMaterialOptions(type);
+
+    const updated = await prisma.manufacturingLot.findUnique({
+      where: { id: model.lotId },
+      include: lotInclude,
+    });
+    return mapLotDetail(updated!);
+  }
+
+  private async updateMaterialEntry(
+    type: MaterialType,
+    entryId: string,
+    productId: string,
+    quantity: number
+  ) {
+    const entry = await this.getMaterialEntry(type, entryId);
+    const model = await prisma.manufacturingModel.findUnique({
+      where: { id: entry.modelId },
+      include: { lot: true },
+    });
+    if (!model) throw new Error("Model not found");
+
+    const oldQty = roundDecimal(toNumber(entry.quantity));
+    const newQty = roundDecimal(quantity);
+    const oldStockQty = materialEntryStockQty(type, oldQty, model.quantity);
+    const newStockQty = materialEntryStockQty(type, newQty, model.quantity);
+    const oldProductId = entry.productId;
+
+    await prisma.$transaction(async (tx) => {
+      if (oldProductId === productId) {
+        await adjustMaterialStock(tx, type, productId, oldStockQty, newStockQty);
+      } else {
+        await releaseMaterialStock(tx, type, oldProductId, oldStockQty);
+        await reserveMaterialStock(tx, type, productId, newStockQty);
+      }
+
+      if (type === "paint") {
+        await tx.manufacturingPaintEntry.update({
+          where: { id: entryId },
+          data: { paintProductId: productId, quantity: newQty },
+        });
+      } else if (type === "hardware") {
+        await tx.manufacturingHardwareEntry.update({
+          where: { id: entryId },
+          data: { hardwareProductId: productId, quantity: newQty },
+        });
+      } else {
+        await tx.manufacturingPackingEntry.update({
+          where: { id: entryId },
+          data: { packingProductId: productId, quantity: newQty },
+        });
+      }
+    });
+
+    await invalidateMaterialOptions(type);
+
+    const updated = await prisma.manufacturingLot.findUnique({
+      where: { id: model.lotId },
+      include: lotInclude,
+    });
+    return mapLotDetail(updated!);
+  }
+
+  async deletePaintEntry(entryId: string) {
+    return this.deleteMaterialEntry("paint", entryId);
+  }
+
+  async deleteHardwareEntry(entryId: string) {
+    return this.deleteMaterialEntry("hardware", entryId);
+  }
+
+  async deletePackingEntry(entryId: string) {
+    return this.deleteMaterialEntry("packing", entryId);
+  }
+
+  private async deleteMaterialEntry(type: MaterialType, entryId: string) {
+    const entry = await this.getMaterialEntry(type, entryId);
+    const model = await prisma.manufacturingModel.findUnique({
+      where: { id: entry.modelId },
+      include: { lot: true },
+    });
+    if (!model) throw new Error("Model not found");
+
+    const qty = roundDecimal(toNumber(entry.quantity));
+    const stockQty = materialEntryStockQty(type, qty, model.quantity);
+
+    await prisma.$transaction(async (tx) => {
+      await releaseMaterialStock(tx, type, entry.productId, stockQty);
+
+      if (type === "paint") await tx.manufacturingPaintEntry.delete({ where: { id: entryId } });
+      else if (type === "hardware") await tx.manufacturingHardwareEntry.delete({ where: { id: entryId } });
+      else await tx.manufacturingPackingEntry.delete({ where: { id: entryId } });
+    });
+
+    await invalidateMaterialOptions(type);
+
+    const updated = await prisma.manufacturingLot.findUnique({
+      where: { id: model.lotId },
+      include: lotInclude,
+    });
+    return mapLotDetail(updated!);
+  }
+
+  private async getMaterialEntry(type: MaterialType, entryId: string) {
+    if (type === "paint") {
+      const e = await prisma.manufacturingPaintEntry.findUnique({ where: { id: entryId } });
+      if (!e) throw new Error("Entry not found");
+      return { modelId: e.modelId, productId: e.paintProductId, quantity: e.quantity };
+    }
+    if (type === "hardware") {
+      const e = await prisma.manufacturingHardwareEntry.findUnique({ where: { id: entryId } });
+      if (!e) throw new Error("Entry not found");
+      return { modelId: e.modelId, productId: e.hardwareProductId, quantity: e.quantity };
+    }
+    const e = await prisma.manufacturingPackingEntry.findUnique({ where: { id: entryId } });
+    if (!e) throw new Error("Entry not found");
+    return { modelId: e.modelId, productId: e.packingProductId, quantity: e.quantity };
+  }
+
+  async completeLot(lotId: string) {
+    // Idempotent: already-completed lots return current detail (no re-deduction)
+    const existing = await prisma.manufacturingLot.findUnique({
+      where: { id: lotId },
+      include: lotInclude,
+    });
+    if (!existing) throw new Error("Lot not found");
+    if (existing.status === "COMPLETED" || existing.stockDeducted) {
+      return mapLotDetail(existing);
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const lot = await tx.manufacturingLot.findUnique({
+        where: { id: lotId },
+        include: {
+          models: {
+            include: {
+              boardEntries: true,
+              paintEntries: true,
+              hardwareEntries: true,
+              packingEntries: true,
+            },
+          },
+        },
+      });
+
+      if (!lot) throw new Error("Lot not found");
+      // Concurrent completion race: another request finished inside the transaction
+      if (lot.status === "COMPLETED" || lot.stockDeducted) {
+        const completed = await tx.manufacturingLot.findUnique({
+          where: { id: lotId },
+          include: lotInclude,
+        });
+        return mapLotDetail(completed!);
+      }
+      if (lot.models.length === 0) {
+        throw new Error("Cannot complete lot without models");
+      }
+
+      const calculatedBoardSqft = lot.models.reduce(
+        (sum, model) =>
+          sum +
+          model.boardEntries.reduce(
+            (entrySum, entry) =>
+              entrySum + totalForModelQty(toNumber(entry.totalSqft), model.quantity),
+            0
+          ),
+        0
+      );
+
+      const actualByThickness = await lotActualBoardRepository.sumByThickness(lotId);
+      const totalActualBoardSqft = Array.from(actualByThickness.values()).reduce(
+        (sum, v) => sum + v,
+        0
+      );
+
+      if (calculatedBoardSqft > 0 && totalActualBoardSqft <= 0) {
+        throw new Error(
+          "Add actual board consumption before completing a lot with calculated board usage"
+        );
+      }
+
+      type MaterialEntry = { productId: string; modelId: string; quantity: number };
+
+      const paintEntries: MaterialEntry[] = [];
+      const hardwareEntries: MaterialEntry[] = [];
+      const packingEntries: MaterialEntry[] = [];
+
+      for (const model of lot.models) {
+        for (const entry of model.paintEntries) {
+          paintEntries.push({
+            productId: entry.paintProductId,
+            modelId: model.id,
+            quantity: roundDecimal(toNumber(entry.quantity)),
+          });
+        }
+        for (const entry of model.hardwareEntries) {
+          hardwareEntries.push({
+            productId: entry.hardwareProductId,
+            modelId: model.id,
+            quantity: totalForModelQty(
+              roundDecimal(toNumber(entry.quantity)),
+              model.quantity
+            ),
+          });
+        }
+        for (const entry of model.packingEntries) {
+          packingEntries.push({
+            productId: entry.packingProductId,
+            modelId: model.id,
+            quantity: roundDecimal(toNumber(entry.quantity)),
+          });
+        }
+      }
+
+      async function writeMaterialConsumptionLogs(
+        entries: MaterialEntry[],
+        type: MaterialType
+      ) {
+        const byProduct = new Map<string, MaterialEntry[]>();
+        for (const entry of entries) {
+          const list = byProduct.get(entry.productId) ?? [];
+          list.push(entry);
+          byProduct.set(entry.productId, list);
+        }
+
+        for (const [productId, productEntries] of byProduct) {
+          const product =
+            type === "paint"
+              ? await tx.paintProduct.findUnique({ where: { id: productId } })
+              : type === "hardware"
+                ? await tx.hardwareProduct.findUnique({ where: { id: productId } })
+                : await tx.packingProduct.findUnique({ where: { id: productId } });
+          if (!product) throw new Error("Product not found");
+
+          const totalUsed = roundDecimal(
+            productEntries.reduce((sum, entry) => sum + entry.quantity, 0)
+          );
+          let running = roundDecimal(toNumber(product.remainingStock) + totalUsed);
+
+          for (const entry of productEntries) {
+            running = roundDecimal(running - entry.quantity);
+            const logData = {
+              productId: entry.productId,
+              lotId,
+              modelId: entry.modelId,
+              quantity: entry.quantity,
+              remainingAfter: running,
+            };
+            if (type === "paint") await tx.paintConsumptionLog.create({ data: logData });
+            else if (type === "hardware") await tx.hardwareConsumptionLog.create({ data: logData });
+            else await tx.packingConsumptionLog.create({ data: logData });
+          }
+        }
+      }
+
+      await writeMaterialConsumptionLogs(paintEntries, "paint");
+      await writeMaterialConsumptionLogs(hardwareEntries, "hardware");
+      await writeMaterialConsumptionLogs(packingEntries, "packing");
+
+      await tx.manufacturingLot.update({
+        where: { id: lotId },
+        data: { status: "COMPLETED", stockDeducted: true },
+      });
+
+      const completed = await tx.manufacturingLot.findUnique({
+        where: { id: lotId },
+        include: lotInclude,
+      });
+      return mapLotDetail(completed!);
+    });
+  }
+}
+
+export const manufacturingService = new ManufacturingService();
