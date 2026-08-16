@@ -3,13 +3,23 @@
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { PageToolbar } from "@/components/shared/page-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +37,7 @@ import {
   useBoardThicknesses,
   useCreateBoardMaterial,
   useCreateBoardThickness,
+  useDeleteBoardThickness,
   useUpdateBoardMaterial,
   useUpdateBoardThickness,
 } from "@/features/inventory/hooks/use-inventory";
@@ -44,6 +55,7 @@ export function BoardProductsTab() {
   const updateMaterial = useUpdateBoardMaterial();
   const createThickness = useCreateBoardThickness();
   const updateThickness = useUpdateBoardThickness();
+  const deleteThickness = useDeleteBoardThickness();
 
   const [materialOpen, setMaterialOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<BoardDto | null>(null);
@@ -51,6 +63,7 @@ export function BoardProductsTab() {
   const [selectedBoard, setSelectedBoard] = useState<BoardDto | null>(null);
   const [thicknessOpen, setThicknessOpen] = useState(false);
   const [editingThickness, setEditingThickness] = useState<BoardThicknessDto | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<BoardThicknessDto | null>(null);
   const [thicknessValue, setThicknessValue] = useState("");
 
   const { data: thicknesses, isLoading: thicknessesLoading } = useBoardThicknesses(
@@ -166,10 +179,32 @@ export function BoardProductsTab() {
                   key={t.id}
                   className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3"
                 >
-                  <span className="font-medium">{t.thickness}</span>
-                  <Button variant="ghost" size="icon-sm" onClick={() => openEditThickness(t)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  <div className="min-w-0">
+                    <span className="font-medium">{t.thickness}</span>
+                    {t.remainingSqft > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Remaining {t.remainingSqft} sqft
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon-sm" onClick={() => openEditThickness(t)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={t.remainingSqft > 0}
+                      title={
+                        t.remainingSqft > 0
+                          ? "Cannot delete thickness with remaining stock"
+                          : "Delete thickness"
+                      }
+                      onClick={() => setDeleteTarget(t)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))
             ) : (
@@ -285,6 +320,35 @@ export function BoardProductsTab() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete thickness?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget
+                ? `This will permanently delete ${deleteTarget.thickness}. You can only delete thicknesses with no remaining stock.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteThickness.isPending}
+              onClick={async () => {
+                if (!deleteTarget || !selectedBoard) return;
+                await deleteThickness.mutateAsync({
+                  id: deleteTarget.id,
+                  boardId: selectedBoard.id,
+                });
+                setDeleteTarget(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

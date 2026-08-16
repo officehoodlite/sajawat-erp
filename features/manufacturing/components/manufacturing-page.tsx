@@ -36,16 +36,15 @@ export function ManufacturingPageClient() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data, isLoading } = useLots(page, PAGE_SIZE, debouncedSearch);
-  const { data: statsData } = useLots(1, 100, "");
   const deleteLot = useDeleteLot();
 
-  const stats = useMemo(() => {
-    const items = statsData?.items ?? [];
-    return {
-      total: statsData?.total ?? 0,
-      totalModels: items.reduce((sum, l) => sum + l.modelCount, 0),
-    };
-  }, [statsData]);
+  const stats = useMemo(
+    () => ({
+      total: data?.lotCount ?? data?.total ?? 0,
+      totalModels: data?.totalModels ?? 0,
+    }),
+    [data]
+  );
 
   const columns: ColumnDef<LotListItemDto>[] = [
     {
@@ -97,7 +96,7 @@ export function ManufacturingPageClient() {
         <StatCard
           label="Total Models"
           value={stats.totalModels}
-          subtitle="Across recent lots"
+          subtitle="Across all lots"
           icon={Layers}
         />
       </StatCardGrid>

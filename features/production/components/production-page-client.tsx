@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCatalogProducts } from "@/features/catalog/hooks/use-catalog-products";
+import { useCatalogProductPicker } from "@/features/catalog/hooks/use-catalog-products";
 import { useLots } from "@/features/manufacturing/hooks/use-manufacturing";
 import { SuggestibleField } from "@/features/production/components/suggestible-field";
 import {
@@ -88,20 +88,15 @@ function InlinePaintProgress({
 
   const save = async () => {
     if (ready === entry.paintingReadyQty && status === entry.paintingStatusQty) return;
-    if (ready < 0 || ready > entry.quantity) {
-      toast.error(`Paint Ready must be between 0 and ${entry.quantity}`);
+    const maxReady = Math.max(0, entry.quantity - entry.completedReadyQty);
+    if (ready < 0 || ready > maxReady) {
+      toast.error(`Paint Ready must be between 0 and ${maxReady}`);
       setReady(entry.paintingReadyQty);
       setStatus(entry.paintingStatusQty);
       return;
     }
     if (status < 0 || status > ready) {
       toast.error("Paint Status cannot exceed Paint Ready");
-      setReady(entry.paintingReadyQty);
-      setStatus(entry.paintingStatusQty);
-      return;
-    }
-    if (entry.completedReadyQty > status) {
-      toast.error(`Paint Status cannot be below Done Ready (${entry.completedReadyQty})`);
       setReady(entry.paintingReadyQty);
       setStatus(entry.paintingStatusQty);
       return;
@@ -139,7 +134,7 @@ function InlinePaintProgress({
         <Input
           type="number"
           min={0}
-          max={entry.quantity}
+          max={Math.max(0, entry.quantity - entry.completedReadyQty)}
           value={ready}
           disabled={isPending}
           onChange={(event) => setReady(Number(event.target.value) || 0)}
@@ -209,8 +204,9 @@ function InlineDoneProgress({
 
   const save = async () => {
     if (ready === entry.completedReadyQty && out === entry.completedOutQty) return;
-    if (ready < 0 || ready > entry.paintingStatusQty) {
-      toast.error(`Done Ready must be between 0 and ${entry.paintingStatusQty}`);
+    const maxDone = entry.completedReadyQty + entry.paintingStatusQty;
+    if (ready < 0 || ready > maxDone) {
+      toast.error(`Done Ready must be between 0 and ${maxDone}`);
       reset();
       return;
     }
@@ -250,7 +246,7 @@ function InlineDoneProgress({
         <Input
           type="number"
           min={0}
-          max={entry.paintingStatusQty}
+          max={entry.completedReadyQty + entry.paintingStatusQty}
           value={ready}
           disabled={isPending}
           onChange={(event) => setReady(Number(event.target.value) || 0)}
@@ -298,9 +294,11 @@ export function ProductionPageClient() {
   const [selectedLotId, setSelectedLotId] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
   const [selectedCatalogModelId, setSelectedCatalogModelId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusContains, setStatusContains] = useState("");
 
   const { data: lotsPage } = useLots(1, 50, lotSearch);
-  const { data: catalogProducts = [] } = useCatalogProducts();
+  const { data: catalogProducts = [] } = useCatalogProductPicker(filterMode === "model");
 
   const catalogModels = useMemo(() => {
     const product = catalogProducts.find((p) => p.id === selectedProductId);
@@ -323,6 +321,30 @@ export function ProductionPageClient() {
 
   const { data, isFetching, isError, error } = useProductionList(listFilter);
   const entries = data?.entries ?? [];
+  const EMPTY_STATUS = "__empty__";
+  const statusOptions = useMemo(() => {
+    const values = new Set<string>();
+    for (const entry of entries) {
+      const status = entry.statusText?.trim();
+      values.add(status ? status : EMPTY_STATUS);
+    }
+    return Array.from(values).sort((a, b) => a.localeCompare(b));
+  }, [entries]);
+  const filteredEntries = useMemo(() => {
+    const q = statusContains.trim().toLowerCase();
+    return entries.filter((entry) => {
+      const status = entry.statusText?.trim() ?? "";
+      if (statusFilter !== "all") {
+        if (statusFilter === EMPTY_STATUS) {
+          if (status) return false;
+        } else if (status !== statusFilter) {
+          return false;
+        }
+      }
+      if (q && !status.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [entries, statusFilter, statusContains]);
   const { data: suggestions } = useProductionSuggestions();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -594,6 +616,43 @@ export function ProductionPageClient() {
             </>
           ) : null}
 
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v ?? "all")}
+              items={[
+                { value: "all", label: "All statuses" },
+                ...statusOptions.map((value) => ({
+                  value,
+                  label: value === EMPTY_STATUS ? "—" : value,
+                })),
+              ]}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {statusOptions.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value === EMPTY_STATUS ? "—" : value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="statusContains">Status contains</Label>
+            <Input
+              id="statusContains"
+              value={statusContains}
+              onChange={(e) => setStatusContains(e.target.value)}
+              placeholder="Filter by text"
+              className="w-full"
+            />
+          </div>
+
           {isFetching ? (
             <p className="self-center text-sm text-muted-foreground">Loading…</p>
           ) : null}
@@ -604,7 +663,7 @@ export function ProductionPageClient() {
 
         <DataTable
           columns={columns}
-          data={entries}
+          data={filteredEntries}
           emptyTitle={emptyTitle}
           emptyDescription="Create a production entry, or adjust the filter."
           onRowClick={(row) => {
@@ -768,7 +827,7 @@ function ProductionEntryDialog({
 
   const initialQtyValid =
     initialQty >= 1 &&
-    (!entry || initialQty >= entry.paintingReadyQty) &&
+    (!entry || initialQty >= entry.paintingReadyQty + entry.completedReadyQty) &&
     initialQty <= maxForSelectedParts;
 
   const handleSubmit = async (e: React.FormEvent) => {

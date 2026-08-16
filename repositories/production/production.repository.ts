@@ -145,18 +145,43 @@ function assertProgressOrder(values: {
   completedReadyQty: number;
   completedOutQty: number;
 }) {
-  if (values.paintingReadyQty > values.carpentryQty) {
-    throw new Error("Paint Ready cannot exceed Initial Qty");
+  if (values.paintingReadyQty + values.completedReadyQty > values.carpentryQty) {
+    throw new Error("Paint remaining plus Done cannot exceed Initial Qty");
   }
   if (values.paintingStatusQty > values.paintingReadyQty) {
     throw new Error("Paint Status cannot exceed Paint Ready");
   }
-  if (values.completedReadyQty > values.paintingStatusQty) {
-    throw new Error("Done Ready cannot exceed Paint Status");
-  }
   if (values.completedOutQty > values.completedReadyQty) {
     throw new Error("Done Out cannot exceed Done Ready");
   }
+}
+
+function applyDoneConsumption(
+  existing: {
+    paintingReadyQty: number;
+    paintingStatusQty: number;
+    completedReadyQty: number;
+  },
+  next: {
+    paintingReadyQty: number;
+    paintingStatusQty: number;
+    completedReadyQty: number;
+    completedOutQty: number;
+    carpentryQty: number;
+  },
+  data: { paintingReadyQty?: number; paintingStatusQty?: number; completedReadyQty?: number }
+) {
+  const doneDelta = next.completedReadyQty - existing.completedReadyQty;
+  if (doneDelta <= 0) return next;
+  if (data.paintingReadyQty !== undefined || data.paintingStatusQty !== undefined) {
+    return next;
+  }
+  const paintingReadyQty = Math.max(0, existing.paintingReadyQty - doneDelta);
+  const paintingStatusQty = Math.max(
+    0,
+    Math.min(paintingReadyQty, existing.paintingStatusQty - doneDelta)
+  );
+  return { ...next, paintingReadyQty, paintingStatusQty };
 }
 
 async function assertPartCapacity(
@@ -357,13 +382,17 @@ export class ProductionRepository {
       if (!existing) throw new Error("Production entry not found");
 
       const nextParts = data.parts ?? existing.parts;
-      const nextProgress = {
-        carpentryQty: data.carpentryQty ?? existing.carpentryQty,
-        paintingReadyQty: data.paintingReadyQty ?? existing.paintingReadyQty,
-        paintingStatusQty: data.paintingStatusQty ?? existing.paintingStatusQty,
-        completedReadyQty: data.completedReadyQty ?? existing.completedReadyQty,
-        completedOutQty: data.completedOutQty ?? existing.completedOutQty,
-      };
+      const nextProgress = applyDoneConsumption(
+        existing,
+        {
+          carpentryQty: data.carpentryQty ?? existing.carpentryQty,
+          paintingReadyQty: data.paintingReadyQty ?? existing.paintingReadyQty,
+          paintingStatusQty: data.paintingStatusQty ?? existing.paintingStatusQty,
+          completedReadyQty: data.completedReadyQty ?? existing.completedReadyQty,
+          completedOutQty: data.completedOutQty ?? existing.completedOutQty,
+        },
+        data
+      );
 
       const quantityTouched =
         data.carpentryQty !== undefined ||

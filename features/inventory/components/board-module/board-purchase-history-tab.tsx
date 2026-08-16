@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditBoardPurchaseDialog } from "@/features/inventory/components/board-module/edit-board-purchase-dialog";
+import { ImportPurchasesMenu } from "@/features/inventory/components/shared/import-purchases-menu";
 import {
   useBoardPurchases,
   useDeleteBoardPurchase,
@@ -134,6 +135,7 @@ export function BoardPurchaseHistoryTab() {
           },
           placeholder: "Search purchases...",
         }}
+        actions={<ImportPurchasesMenu kind="boards" />}
       />
       <DataTable
         columns={columns}

@@ -149,10 +149,10 @@ export function ProductsPageClient() {
         modelNumber: modelNumber.trim(),
         size: modelSize.trim(),
         partCount,
-        boardThicknessIds: [],
-        paintProductIds: [],
-        hardwareProductIds: [],
-        packingProductIds: [],
+        boardPresets: [],
+        paintPresets: [],
+        hardwarePresets: [],
+        packingPresets: [],
       });
       setModelFormOpen(false);
       router.push(modelMaterialsHref(selectedId, created.id));

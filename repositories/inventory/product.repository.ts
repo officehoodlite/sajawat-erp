@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { toNumber } from "@/lib/mappers";
 import { CACHE_KEYS, cacheDel, cacheGet, cacheSet } from "@/lib/redis";
 import type { CatalogProductDetailDto, CatalogProductModelDto, ProductDto } from "@/types/dto";
 import type {
@@ -35,19 +36,29 @@ type ProductModelRow = {
   createdAt: Date;
   updatedAt: Date;
   boardPresets: Array<{
+    id: string;
     boardThicknessId: string;
+    length: unknown;
+    width: unknown;
+    quantity: number;
     boardThickness: { thickness: string; board: { materialName: string } };
   }>;
   paintPresets: Array<{
+    id: string;
     paintProductId: string;
+    quantity: unknown;
     paintProduct: { name: string; brand: string | null };
   }>;
   hardwarePresets: Array<{
+    id: string;
     hardwareProductId: string;
+    quantity: unknown;
     hardwareProduct: { name: string; brand: string | null };
   }>;
   packingPresets: Array<{
+    id: string;
     packingProductId: string;
+    quantity: unknown;
     packingProduct: { name: string; brand: string | null };
   }>;
 };
@@ -63,20 +74,30 @@ function mapProductModel(row: ProductModelRow): CatalogProductModelDto {
     modelName: row.modelName,
     partCount: row.partCount,
     boardPresets: row.boardPresets.map((p) => ({
-      id: p.boardThicknessId,
+      id: p.id,
+      boardThicknessId: p.boardThicknessId,
       label: `${p.boardThickness.board.materialName} ${p.boardThickness.thickness}`,
+      length: toNumber(p.length),
+      width: toNumber(p.width),
+      quantity: p.quantity,
     })),
     paintPresets: row.paintPresets.map((p) => ({
-      id: p.paintProductId,
+      id: p.id,
+      productId: p.paintProductId,
       label: materialLabel(p.paintProduct.name, p.paintProduct.brand),
+      quantity: toNumber(p.quantity),
     })),
     hardwarePresets: row.hardwarePresets.map((p) => ({
-      id: p.hardwareProductId,
+      id: p.id,
+      productId: p.hardwareProductId,
       label: materialLabel(p.hardwareProduct.name, p.hardwareProduct.brand),
+      quantity: toNumber(p.quantity),
     })),
     packingPresets: row.packingPresets.map((p) => ({
-      id: p.packingProductId,
+      id: p.id,
+      productId: p.packingProductId,
       label: materialLabel(p.packingProduct.name, p.packingProduct.brand),
+      quantity: toNumber(p.quantity),
     })),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -109,35 +130,41 @@ async function replaceModelPresets(
   await tx.productModelHardwarePreset.deleteMany({ where: { productModelId } });
   await tx.productModelPackingPreset.deleteMany({ where: { productModelId } });
 
-  if (data.boardThicknessIds.length > 0) {
+  if (data.boardPresets.length > 0) {
     await tx.productModelBoardPreset.createMany({
-      data: data.boardThicknessIds.map((boardThicknessId) => ({
+      data: data.boardPresets.map((preset) => ({
         productModelId,
-        boardThicknessId,
+        boardThicknessId: preset.boardThicknessId,
+        length: preset.length,
+        width: preset.width,
+        quantity: preset.quantity,
       })),
     });
   }
-  if (data.paintProductIds.length > 0) {
+  if (data.paintPresets.length > 0) {
     await tx.productModelPaintPreset.createMany({
-      data: data.paintProductIds.map((paintProductId) => ({
+      data: data.paintPresets.map((preset) => ({
         productModelId,
-        paintProductId,
+        paintProductId: preset.productId,
+        quantity: preset.quantity,
       })),
     });
   }
-  if (data.hardwareProductIds.length > 0) {
+  if (data.hardwarePresets.length > 0) {
     await tx.productModelHardwarePreset.createMany({
-      data: data.hardwareProductIds.map((hardwareProductId) => ({
+      data: data.hardwarePresets.map((preset) => ({
         productModelId,
-        hardwareProductId,
+        hardwareProductId: preset.productId,
+        quantity: preset.quantity,
       })),
     });
   }
-  if (data.packingProductIds.length > 0) {
+  if (data.packingPresets.length > 0) {
     await tx.productModelPackingPreset.createMany({
-      data: data.packingProductIds.map((packingProductId) => ({
+      data: data.packingPresets.map((preset) => ({
         productModelId,
-        packingProductId,
+        packingProductId: preset.productId,
+        quantity: preset.quantity,
       })),
     });
   }
@@ -182,6 +209,44 @@ export class ProductRepository {
       },
     });
     return rows.map(mapProductDetail);
+  }
+
+  async findAllWithModelNames(): Promise<CatalogProductDetailDto[]> {
+    const rows = await prisma.product.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        models: {
+          orderBy: { modelName: "asc" },
+          select: {
+            id: true,
+            productId: true,
+            modelName: true,
+            partCount: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      models: row.models.map((model) => ({
+        id: model.id,
+        productId: model.productId,
+        modelName: model.modelName,
+        partCount: model.partCount,
+        boardPresets: [],
+        paintPresets: [],
+        hardwarePresets: [],
+        packingPresets: [],
+        createdAt: model.createdAt.toISOString(),
+        updatedAt: model.updatedAt.toISOString(),
+      })),
+    }));
   }
 
   async create(data: CreateCatalogProductInput): Promise<CatalogProductDetailDto> {

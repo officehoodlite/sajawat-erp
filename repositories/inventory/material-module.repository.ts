@@ -375,6 +375,10 @@ export class MaterialModuleRepository {
     });
   }
 
+  async findPurchaseById(id: string) {
+    return this.findPurchaseInTx(prisma, id);
+  }
+
   private async findPurchaseInTx(tx: Prisma.TransactionClient, id: string) {
     const include = { product: true, supplier: true };
     if (this.module === "paint") {

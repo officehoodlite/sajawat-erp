@@ -26,6 +26,11 @@ enum WorkerEntryType {
   PACKING
 }
 
+enum UserRole {
+  ADMIN
+  USER
+}
+
 enum Unit {
   PCS
   KG
@@ -276,11 +281,13 @@ model ProductModelBoardPreset {
   id               String         @id @default(cuid())
   productModelId   String
   boardThicknessId String
+  length           Decimal        @default(0) @db.Decimal(16, 6)
+  width            Decimal        @default(0) @db.Decimal(16, 6)
+  quantity         Int            @default(0)
   productModel     ProductModel   @relation(fields: [productModelId], references: [id], onDelete: Cascade)
   boardThickness   BoardThickness @relation(fields: [boardThicknessId], references: [id])
   createdAt        DateTime       @default(now())
 
-  @@unique([productModelId, boardThicknessId])
   @@index([productModelId])
 }
 
@@ -288,11 +295,11 @@ model ProductModelPaintPreset {
   id             String       @id @default(cuid())
   productModelId String
   paintProductId String
+  quantity       Decimal      @default(0) @db.Decimal(18, 6)
   productModel   ProductModel @relation(fields: [productModelId], references: [id], onDelete: Cascade)
   paintProduct   PaintProduct @relation(fields: [paintProductId], references: [id])
   createdAt      DateTime     @default(now())
 
-  @@unique([productModelId, paintProductId])
   @@index([productModelId])
 }
 
@@ -300,11 +307,11 @@ model ProductModelHardwarePreset {
   id                String          @id @default(cuid())
   productModelId    String
   hardwareProductId String
+  quantity          Decimal         @default(0) @db.Decimal(18, 6)
   productModel      ProductModel    @relation(fields: [productModelId], references: [id], onDelete: Cascade)
   hardwareProduct   HardwareProduct @relation(fields: [hardwareProductId], references: [id])
   createdAt         DateTime        @default(now())
 
-  @@unique([productModelId, hardwareProductId])
   @@index([productModelId])
 }
 
@@ -312,11 +319,11 @@ model ProductModelPackingPreset {
   id               String         @id @default(cuid())
   productModelId   String
   packingProductId String
+  quantity         Decimal        @default(0) @db.Decimal(18, 6)
   productModel     ProductModel   @relation(fields: [productModelId], references: [id], onDelete: Cascade)
   packingProduct   PackingProduct @relation(fields: [packingProductId], references: [id])
   createdAt        DateTime       @default(now())
 
-  @@unique([productModelId, packingProductId])
   @@index([productModelId])
 }
 
@@ -372,11 +379,13 @@ model ManufacturingModelBoardPreset {
   id               String             @id @default(cuid())
   modelId          String
   boardThicknessId String
+  length           Decimal            @default(0) @db.Decimal(16, 6)
+  width            Decimal            @default(0) @db.Decimal(16, 6)
+  quantity         Int                @default(0)
   model            ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
   boardThickness   BoardThickness     @relation(fields: [boardThicknessId], references: [id])
   createdAt        DateTime           @default(now())
 
-  @@unique([modelId, boardThicknessId])
   @@index([modelId])
 }
 
@@ -384,11 +393,11 @@ model ManufacturingModelPaintPreset {
   id             String             @id @default(cuid())
   modelId        String
   paintProductId String
+  quantity       Decimal            @default(0) @db.Decimal(18, 6)
   model          ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
   paintProduct   PaintProduct       @relation(fields: [paintProductId], references: [id])
   createdAt      DateTime           @default(now())
 
-  @@unique([modelId, paintProductId])
   @@index([modelId])
 }
 
@@ -396,11 +405,11 @@ model ManufacturingModelHardwarePreset {
   id                String             @id @default(cuid())
   modelId           String
   hardwareProductId String
+  quantity          Decimal            @default(0) @db.Decimal(18, 6)
   model             ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
   hardwareProduct   HardwareProduct    @relation(fields: [hardwareProductId], references: [id])
   createdAt         DateTime           @default(now())
 
-  @@unique([modelId, hardwareProductId])
   @@index([modelId])
 }
 
@@ -408,11 +417,11 @@ model ManufacturingModelPackingPreset {
   id               String             @id @default(cuid())
   modelId          String
   packingProductId String
+  quantity         Decimal            @default(0) @db.Decimal(18, 6)
   model            ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
   packingProduct   PackingProduct     @relation(fields: [packingProductId], references: [id])
   createdAt        DateTime           @default(now())
 
-  @@unique([modelId, packingProductId])
   @@index([modelId])
 }
 
@@ -542,9 +551,24 @@ model LotWorkerEntry {
 model AuthSession {
   id        String    @id @default(cuid())
   tokenHash String    @unique
+  userId    String?
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
+  @@index([userId])
+}
+
+model User {
+  id           String        @id @default(cuid())
+  username     String        @unique
+  passwordHash String
+  role         UserRole      @default(USER)
+  permissions  Json
+  isActive     Boolean       @default(true)
+  sessions     AuthSession[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { canViewWorkerPrices } from "@/lib/permissions";
 import { toNumber } from "@/lib/mappers";
 import { groupBoardUsage, round2 } from "@/utils/board-calculations";
 import { totalForModelQty } from "@/lib/model-consumption";
@@ -110,18 +111,24 @@ function mapModel(row: {
   }>;
   boardPresets: Array<{
     boardThicknessId: string;
+    length: unknown;
+    width: unknown;
+    quantity: number;
     boardThickness: { thickness: string; board: { materialName: string } };
   }>;
   paintPresets: Array<{
     paintProductId: string;
+    quantity: unknown;
     paintProduct: { name: string; brand: string | null };
   }>;
   hardwarePresets: Array<{
     hardwareProductId: string;
+    quantity: unknown;
     hardwareProduct: { name: string; brand: string | null };
   }>;
   packingPresets: Array<{
     packingProductId: string;
+    quantity: unknown;
     packingProduct: { name: string; brand: string | null };
   }>;
 }): ModelDto {
@@ -135,7 +142,9 @@ function mapModel(row: {
     quantity: row.quantity,
     partCount: row.partCount,
     polishLaborPerQty:
-      row.polishLaborPerQty == null ? null : toNumber(row.polishLaborPerQty),
+      canViewWorkerPrices() && row.polishLaborPerQty != null
+        ? toNumber(row.polishLaborPerQty)
+        : null,
     boardEntries: row.boardEntries.map((e) => mapBoardEntry(e)),
     paintEntries: row.paintEntries.map((e) => ({
       id: e.id,
@@ -166,18 +175,24 @@ function mapModel(row: {
       materialName: p.boardThickness.board.materialName,
       thickness: p.boardThickness.thickness,
       label: `${p.boardThickness.board.materialName} ${p.boardThickness.thickness}`,
+      length: toNumber(p.length),
+      width: toNumber(p.width),
+      quantity: p.quantity,
     })),
     paintPresets: row.paintPresets.map((p) => ({
       productId: p.paintProductId,
       label: materialLabel(p.paintProduct.name, p.paintProduct.brand),
+      quantity: toNumber(p.quantity),
     })),
     hardwarePresets: row.hardwarePresets.map((p) => ({
       productId: p.hardwareProductId,
       label: materialLabel(p.hardwareProduct.name, p.hardwareProduct.brand),
+      quantity: toNumber(p.quantity),
     })),
     packingPresets: row.packingPresets.map((p) => ({
       productId: p.packingProductId,
       label: materialLabel(p.packingProduct.name, p.packingProduct.brand),
+      quantity: toNumber(p.quantity),
     })),
   };
 }
@@ -225,7 +240,7 @@ export class LotRepository {
         }
       : undefined;
 
-    const [items, total] = await Promise.all([
+    const [items, total, lotCount, totalModels] = await Promise.all([
       prisma.manufacturingLot.findMany({
         where,
         skip: params.skip,
@@ -236,6 +251,10 @@ export class LotRepository {
         },
       }),
       prisma.manufacturingLot.count({ where }),
+      params.search
+        ? prisma.manufacturingLot.count()
+        : Promise.resolve(0),
+      prisma.manufacturingModel.count(),
     ]);
 
     const mapped: LotListItemDto[] = items.map((lot) => ({
@@ -247,7 +266,12 @@ export class LotRepository {
       remarks: lot.remarks,
     }));
 
-    return { items: mapped, total };
+    return {
+      items: mapped,
+      total,
+      lotCount: params.search ? lotCount : total,
+      totalModels,
+    };
   }
 
   async findById(id: string) {

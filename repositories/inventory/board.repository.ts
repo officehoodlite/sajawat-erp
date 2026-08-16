@@ -59,22 +59,26 @@ export class BoardRepository {
   }
 
   async findStockAggregated(): Promise<BoardStockDto[]> {
-    const rows = await prisma.boardThickness.findMany({
-      include: {
-        board: true,
-        inventories: { select: { remainingSqft: true } },
-      },
-      orderBy: [{ board: { materialName: "asc" } }, { thickness: "asc" }],
-    });
+    const [thicknesses, sums] = await Promise.all([
+      prisma.boardThickness.findMany({
+        include: { board: true },
+        orderBy: [{ board: { materialName: "asc" } }, { thickness: "asc" }],
+      }),
+      prisma.boardInventory.groupBy({
+        by: ["boardThicknessId"],
+        _sum: { remainingSqft: true },
+      }),
+    ]);
 
-    return rows.map((row) => ({
+    const remainingByThickness = new Map(
+      sums.map((row) => [row.boardThicknessId, toNumber(row._sum.remainingSqft)])
+    );
+
+    return thicknesses.map((row) => ({
       id: row.id,
       materialName: row.board.materialName,
       thickness: row.thickness,
-      remainingSqft: row.inventories.reduce(
-        (sum, inventory) => sum + toNumber(inventory.remainingSqft),
-        0
-      ),
+      remainingSqft: remainingByThickness.get(row.id) ?? 0,
     }));
   }
 
@@ -246,7 +250,41 @@ export class BoardRepository {
   }
 
   async deleteThickness(id: string) {
-    return prisma.boardThickness.delete({ where: { id } });
+    const existing = await prisma.boardThickness.findUnique({ where: { id } });
+    if (!existing) {
+      const err = new Error("Thickness not found") as Error & { statusCode?: number };
+      err.statusCode = 404;
+      throw err;
+    }
+    const remainingSqft = await this.sumRemainingSqft(id);
+    if (remainingSqft > 0) {
+      const err = new Error("Cannot delete thickness with remaining stock") as Error & {
+        statusCode?: number;
+      };
+      err.statusCode = 400;
+      throw err;
+    }
+    try {
+      return await prisma.boardThickness.delete({ where: { id } });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "P2003" || code === "P2014") {
+        const err = new Error(
+          "Cannot delete this thickness because it is used on a product model or lot"
+        ) as Error & { statusCode?: number };
+        err.statusCode = 400;
+        throw err;
+      }
+      throw error;
+    }
+  }
+
+  async sumRemainingSqft(boardThicknessId: string) {
+    const agg = await prisma.boardInventory.aggregate({
+      where: { boardThicknessId },
+      _sum: { remainingSqft: true },
+    });
+    return toNumber(agg._sum.remainingSqft);
   }
 
   async findInventories(boardThicknessId?: string) {

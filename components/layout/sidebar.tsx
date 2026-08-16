@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiFetch } from "@/lib/api-client";
+import { useCurrentUser } from "@/features/users/hooks/use-users";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -29,6 +30,8 @@ function ThemeToggle() {
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: me } = useCurrentUser();
+  const isAdmin = me?.role === "ADMIN";
 
   const handleLogout = async () => {
     await apiFetch("/api/auth/logout", { method: "POST" });
@@ -52,12 +55,17 @@ export function Sidebar() {
 
       <ScrollArea className="flex-1 px-3 pb-4">
         <nav className="space-y-6 pt-2">
-          {navSections.map((section) => (
+          {navSections.map((section) => {
+            const items = section.items.filter(
+              (item) => !("adminOnly" in item && item.adminOnly) || isAdmin
+            );
+            if (items.length === 0) return null;
+            return (
             <div key={section.label} className="space-y-1">
               <p className="px-2.5 pb-1.5 text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
                 {section.label}
               </p>
-              {section.items.map((item) => {
+              {items.map((item) => {
                 const Icon = item.icon;
                 const active =
                   pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -86,7 +94,8 @@ export function Sidebar() {
                 );
               })}
             </div>
-          ))}
+            );
+          })}
         </nav>
       </ScrollArea>
 

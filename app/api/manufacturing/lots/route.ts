@@ -12,10 +12,16 @@ export async function GET(request: NextRequest) {
     if (!session.ok) return session.response;
 
     const { page, limit, search, skip } = parsePagination(request.nextUrl.searchParams);
-    const { items, total } = await lotRepository.findMany({ skip, limit, search });
+    const { items, total, lotCount, totalModels } = await lotRepository.findMany({
+      skip,
+      limit,
+      search,
+    });
     return successResponse({
       items,
       total,
+      lotCount,
+      totalModels,
       page,
       limit,
       totalPages: Math.ceil(total / limit),

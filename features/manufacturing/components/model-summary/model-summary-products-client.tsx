@@ -8,12 +8,12 @@ import { ErpPage } from "@/components/shared/erp-page";
 import { PageHeader } from "@/components/shared/page-header";
 import { PageToolbar } from "@/components/shared/page-toolbar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCatalogProducts } from "@/features/catalog/hooks/use-catalog-products";
+import { useCatalogProductPicker } from "@/features/catalog/hooks/use-catalog-products";
 import type { CatalogProductDetailDto } from "@/types/dto";
 
 export function ModelSummaryProductsClient() {
   const router = useRouter();
-  const { data: products = [], isLoading } = useCatalogProducts();
+  const { data: products = [], isLoading } = useCatalogProductPicker();
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {

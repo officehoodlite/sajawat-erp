@@ -65,12 +65,18 @@ export class InventoryService {
 
   async getThicknesses(boardId: string) {
     const rows = await boardRepository.findThicknessesByBoard(boardId);
-    return rows.map((t) => ({
-      id: t.id,
-      boardId: t.boardId,
-      thickness: t.thickness,
-      materialName: t.board.materialName,
-    }));
+    return Promise.all(
+      rows.map(async (t) => {
+        const remainingSqft = await boardRepository.sumRemainingSqft(t.id);
+        return {
+          id: t.id,
+          boardId: t.boardId,
+          thickness: t.thickness,
+          materialName: t.board.materialName,
+          remainingSqft,
+        };
+      })
+    );
   }
 
   async createThickness(data: CreateBoardThicknessInput) {
@@ -96,6 +102,10 @@ export class InventoryService {
 
   async getThicknessOptions() {
     return boardRepository.findAllThicknessOptions();
+  }
+
+  async getBoardInventory(id: string) {
+    return boardRepository.findInventoryById(id);
   }
 
   async createBoardInventory(data: CreateBoardInventoryInput) {
@@ -144,6 +154,10 @@ export class InventoryService {
 
   async getCatalogProducts() {
     return productRepository.findAllWithModels();
+  }
+
+  async getCatalogProductPicker() {
+    return productRepository.findAllWithModelNames();
   }
 
   async getCatalogProduct(id: string) {

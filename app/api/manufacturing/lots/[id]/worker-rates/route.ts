@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { DEFAULT_BODY_LIMIT, LARGE_BODY_LIMIT, parseJsonBody } from "@/lib/request-body";
-import { requireSession } from "@/lib/require-session";
+import { LARGE_BODY_LIMIT, parseJsonBody } from "@/lib/request-body";
+import { requireWorkerPrices } from "@/lib/require-session";
 import { caughtErrorResponse, errorResponse, successResponse } from "@/lib/api-response";
 import { manufacturingService } from "@/services/manufacturing/manufacturing.service";
 import { updateLotWorkerRatesSchema } from "@/validators/manufacturing";
@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const session = await requireSession();
+    const session = await requireWorkerPrices();
     if (!session.ok) return session.response;
 
     const { id } = await params;
@@ -22,7 +22,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
-    const session = await requireSession();
+    const session = await requireWorkerPrices();
     if (!session.ok) return session.response;
 
     const { id } = await params;

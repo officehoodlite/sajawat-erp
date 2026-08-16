@@ -33,11 +33,11 @@ function refineProgressOrder(
   },
   ctx: z.RefinementCtx
 ) {
-  if (data.paintingReadyQty > data.carpentryQty) {
+  if (data.paintingReadyQty + data.completedReadyQty > data.carpentryQty) {
     ctx.addIssue({
       code: "custom",
       path: ["paintingReadyQty"],
-      message: "Paint Ready cannot exceed Initial Qty",
+      message: "Paint remaining plus Done cannot exceed Initial Qty",
     });
   }
   if (data.paintingStatusQty > data.paintingReadyQty) {
@@ -45,13 +45,6 @@ function refineProgressOrder(
       code: "custom",
       path: ["paintingStatusQty"],
       message: "Paint Status cannot exceed Paint Ready",
-    });
-  }
-  if (data.completedReadyQty > data.paintingStatusQty) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["completedReadyQty"],
-      message: "Done Ready cannot exceed Paint Status",
     });
   }
   if (data.completedOutQty > data.completedReadyQty) {

@@ -6,6 +6,7 @@ import {
   Paintbrush,
   ShoppingBag,
   Truck,
+  Users,
   Wrench,
   Workflow,
 } from "lucide-react";
@@ -34,6 +35,10 @@ export const navSections = [
       { href: "/inventory/hardware", label: "Hardware", icon: Wrench },
       { href: "/inventory/packing", label: "Packing", icon: Package },
     ],
+  },
+  {
+    label: "Admin",
+    items: [{ href: "/users", label: "Users", icon: Users, adminOnly: true as const }],
   },
 ] as const;
 

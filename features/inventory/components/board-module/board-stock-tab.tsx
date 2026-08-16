@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { Plus } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { PageToolbar } from "@/components/shared/page-toolbar";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddBoardPurchaseDialog } from "@/features/inventory/components/board-module/add-board-purchase-dialog";
+import { ImportPurchasesActions } from "@/features/inventory/components/shared/import-purchases-menu";
 import {
   useBoardStock,
   useCreateBoardInventory,
@@ -56,10 +55,7 @@ export function BoardStockTab() {
     <div className="space-y-4">
       <PageToolbar
         actions={
-          <Button onClick={() => setPurchaseOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Purchase
-          </Button>
+          <ImportPurchasesActions kind="boards" onAdd={() => setPurchaseOpen(true)} />
         }
       />
 

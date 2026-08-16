@@ -173,6 +173,20 @@ export function useUpdateBoardThickness() {
   });
 }
 
+export function useDeleteBoardThickness() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string; boardId: string }) =>
+      apiFetch(`/api/inventory/boards/thicknesses/${id}`, { method: "DELETE" }),
+    onSuccess: (_, variables) => {
+      invalidateBoardMaterials(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["boards", "thicknesses", variables.boardId] });
+      toast.success("Thickness deleted");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useCreateBoardInventory() {
   const queryClient = useQueryClient();
   return useMutation({

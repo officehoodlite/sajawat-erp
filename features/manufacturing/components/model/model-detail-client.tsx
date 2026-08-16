@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSyncedTab } from "@/hooks/use-synced-tab";
 import { ArrowLeft, Box, Layers, Package, Paintbrush } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,16 +24,10 @@ import { cn } from "@/lib/utils";
 import { formatNumber } from "@/utils/format";
 
 const TAB_VALUES = ["board", "paint", "hardware", "packing"] as const;
-type MaterialTab = (typeof TAB_VALUES)[number];
 
 export function ModelDetailClient({ lotId, modelId }: { lotId: string; modelId: string }) {
-  const router = useRouter();
   const { data, isLoading } = useModel(modelId);
-  const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const activeTab: MaterialTab = TAB_VALUES.includes(tabParam as MaterialTab)
-    ? (tabParam as MaterialTab)
-    : "board";
+  const [activeTab, setActiveTab] = useSyncedTab(TAB_VALUES, "board");
 
   const model = data?.model;
   const lot = data?.lot;
@@ -123,9 +117,7 @@ export function ModelDetailClient({ lotId, modelId }: { lotId: string; modelId: 
 
       <Tabs
         value={activeTab}
-        onValueChange={(value) =>
-          router.push(`/manufacturing/${lotId}/models/${modelId}?tab=${value}`)
-        }
+        onValueChange={setActiveTab}
         className="space-y-6"
       >
         <SecondaryTabsList>

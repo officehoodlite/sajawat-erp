@@ -118,11 +118,26 @@ export const updateCatalogProductSchema = createCatalogProductSchema.partial().r
   { message: "At least one field is required" }
 );
 
+const nonNegNumber = z.coerce.number().min(0).transform(roundDecimal);
+const nonNegInt = z.coerce.number().int().min(0);
+
+const catalogBoardPresetWriteSchema = z.object({
+  boardThicknessId: z.string().min(1).max(64),
+  length: nonNegNumber,
+  width: nonNegNumber,
+  quantity: nonNegInt,
+});
+
+const catalogMaterialPresetWriteSchema = z.object({
+  productId: z.string().min(1).max(64),
+  quantity: nonNegNumber,
+});
+
 const catalogModelPresetIdsSchema = z.object({
-  boardThicknessIds: z.array(z.string().min(1)).max(50).optional().default([]),
-  paintProductIds: z.array(z.string().min(1)).max(50).optional().default([]),
-  hardwareProductIds: z.array(z.string().min(1)).max(50).optional().default([]),
-  packingProductIds: z.array(z.string().min(1)).max(50).optional().default([]),
+  boardPresets: z.array(catalogBoardPresetWriteSchema).max(50).optional().default([]),
+  paintPresets: z.array(catalogMaterialPresetWriteSchema).max(50).optional().default([]),
+  hardwarePresets: z.array(catalogMaterialPresetWriteSchema).max(50).optional().default([]),
+  packingPresets: z.array(catalogMaterialPresetWriteSchema).max(50).optional().default([]),
 });
 
 const catalogModelFieldsSchema = z
@@ -137,10 +152,10 @@ function toCatalogModelWrite(data: z.infer<typeof catalogModelFieldsSchema>) {
   return {
     modelName: formatCatalogModelName(data.modelNumber, data.size),
     partCount: data.partCount,
-    boardThicknessIds: [...new Set(data.boardThicknessIds)],
-    paintProductIds: [...new Set(data.paintProductIds)],
-    hardwareProductIds: [...new Set(data.hardwareProductIds)],
-    packingProductIds: [...new Set(data.packingProductIds)],
+    boardPresets: data.boardPresets,
+    paintPresets: data.paintPresets,
+    hardwarePresets: data.hardwarePresets,
+    packingPresets: data.packingPresets,
   };
 }
 

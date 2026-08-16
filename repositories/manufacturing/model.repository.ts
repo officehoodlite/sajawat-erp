@@ -16,6 +16,7 @@ import {
   buildBoardActualConsumption,
   buildBoardCalculatedByModel,
 } from "@/features/manufacturing/utils/board-actual-consumption";
+import { sanitizeLotSummary, canViewWorkerPrices } from "@/lib/permissions";
 import type {
   LotSummaryDto,
   MaterialConsumptionSummaryDto,
@@ -126,18 +127,24 @@ function mapModel(row: {
   }>;
   boardPresets: Array<{
     boardThicknessId: string;
+    length: unknown;
+    width: unknown;
+    quantity: number;
     boardThickness: { thickness: string; board: { materialName: string } };
   }>;
   paintPresets: Array<{
     paintProductId: string;
+    quantity: unknown;
     paintProduct: { name: string; brand: string | null };
   }>;
   hardwarePresets: Array<{
     hardwareProductId: string;
+    quantity: unknown;
     hardwareProduct: { name: string; brand: string | null };
   }>;
   packingPresets: Array<{
     packingProductId: string;
+    quantity: unknown;
     packingProduct: { name: string; brand: string | null };
   }>;
 }): ModelDto {
@@ -151,7 +158,9 @@ function mapModel(row: {
     quantity: row.quantity,
     partCount: row.partCount,
     polishLaborPerQty:
-      row.polishLaborPerQty == null ? null : toNumber(row.polishLaborPerQty),
+      canViewWorkerPrices() && row.polishLaborPerQty != null
+        ? toNumber(row.polishLaborPerQty)
+        : null,
     boardEntries: row.boardEntries.map((e) => mapBoardEntry(e)),
     paintEntries: row.paintEntries.map((e) => ({
       id: e.id,
@@ -182,18 +191,24 @@ function mapModel(row: {
       materialName: p.boardThickness.board.materialName,
       thickness: p.boardThickness.thickness,
       label: `${p.boardThickness.board.materialName} ${p.boardThickness.thickness}`,
+      length: toNumber(p.length),
+      width: toNumber(p.width),
+      quantity: p.quantity,
     })),
     paintPresets: row.paintPresets.map((p) => ({
       productId: p.paintProductId,
       label: materialLabel(p.paintProduct.name, p.paintProduct.brand),
+      quantity: toNumber(p.quantity),
     })),
     hardwarePresets: row.hardwarePresets.map((p) => ({
       productId: p.hardwareProductId,
       label: materialLabel(p.hardwareProduct.name, p.hardwareProduct.brand),
+      quantity: toNumber(p.quantity),
     })),
     packingPresets: row.packingPresets.map((p) => ({
       productId: p.packingProductId,
       label: materialLabel(p.packingProduct.name, p.packingProduct.brand),
+      quantity: toNumber(p.quantity),
     })),
   };
 }
@@ -531,5 +546,5 @@ export async function findLotSummaryById(id: string): Promise<LotSummaryDto | nu
     where: { id },
     include: summaryInclude,
   });
-  return lot ? mapLotSummaryFromQuery(lot) : null;
+  return lot ? sanitizeLotSummary(mapLotSummaryFromQuery(lot)) : null;
 }

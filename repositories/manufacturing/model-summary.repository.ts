@@ -67,6 +67,7 @@ export async function findCatalogModelLotSummaries(
       packingEntries: { include: { packingProduct: true } },
     },
     orderBy: { lot: { createdAt: "desc" } },
+    take: 25,
   });
 
   const seenLots = new Set<string>();

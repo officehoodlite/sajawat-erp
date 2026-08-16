@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditPurchaseDialog } from "@/features/inventory/components/material-module/edit-purchase-dialog";
+import { ImportPurchasesMenu } from "@/features/inventory/components/shared/import-purchases-menu";
 import {
   useDeleteMaterialPurchase,
   useMaterialPurchases,
@@ -59,16 +60,16 @@ export function PurchaseHistoryTab({ type }: PurchaseHistoryTabProps) {
       header: "Supplier",
       cell: ({ row }) => row.original.supplierName ?? "—",
     },
-    ...(type === "paint"
-      ? []
-      : [
+    ...(type === "packing"
+      ? [
           {
             accessorKey: "invoiceNumber",
             header: "Invoice",
             cell: ({ row }: { row: { original: MaterialPurchaseDto } }) =>
               row.original.invoiceNumber ?? "—",
           } as ColumnDef<MaterialPurchaseDto>,
-        ]),
+        ]
+      : []),
     {
       accessorKey: "quantity",
       header: "Qty",
@@ -146,6 +147,7 @@ export function PurchaseHistoryTab({ type }: PurchaseHistoryTabProps) {
           },
           placeholder: "Search purchases...",
         }}
+        actions={<ImportPurchasesMenu kind={type} />}
       />
       <DataTable
         columns={columns}

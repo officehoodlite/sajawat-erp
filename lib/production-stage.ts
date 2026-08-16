@@ -1,4 +1,8 @@
-/** Derived balances from stored progress quantities. */
+/** Derived balances from stored progress quantities.
+ * carpentryQty is stored as initial qty.
+ * paintingReadyQty is remaining in paint R.
+ * completedReadyQty is done R.
+ */
 export function progressDisplay(values: {
   carpentryQty: number;
   paintingReadyQty: number;
@@ -11,10 +15,11 @@ export function progressDisplay(values: {
   const paintingStatusQty = Math.max(0, Math.floor(values.paintingStatusQty));
   const completedReady = Math.max(0, Math.floor(values.completedReadyQty));
   const completedOutQty = Math.max(0, Math.floor(values.completedOutQty));
+  const carpentryRemaining = Math.max(0, initialQty - paintingReady - completedReady);
 
   return {
     quantity: initialQty,
-    carpentryQty: initialQty,
+    carpentryQty: carpentryRemaining,
     paintingReady,
     paintingStatusQty,
     paintingBalance: Math.max(0, paintingReady - paintingStatusQty),

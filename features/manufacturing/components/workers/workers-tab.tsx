@@ -24,6 +24,7 @@ import {
   useDeleteLotWorkerEntry,
   useUpdateLotWorkerEntry,
 } from "@/features/manufacturing/hooks/use-manufacturing";
+import { useCurrentUser } from "@/features/users/hooks/use-users";
 import type { LotSummaryDto, LotWorkerEntryDto } from "@/types/dto";
 import type { CreateLotWorkerEntryInput } from "@/validators/manufacturing";
 
@@ -37,6 +38,8 @@ export function WorkersTab({ lot, readOnly = false }: WorkersTabProps) {
   const [editingEntry, setEditingEntry] = useState<LotWorkerEntryDto | null>(null);
   const [deleteEntry, setDeleteEntry] = useState<LotWorkerEntryDto | null>(null);
 
+  const { data: me } = useCurrentUser();
+  const canSeePrices = me?.workerPrices === true;
   const createEntries = useCreateLotWorkerEntries(lot.id);
   const updateEntry = useUpdateLotWorkerEntry(lot.id);
   const deleteEntryMutation = useDeleteLotWorkerEntry(lot.id);
@@ -52,7 +55,9 @@ export function WorkersTab({ lot, readOnly = false }: WorkersTabProps) {
 
   return (
     <div className="space-y-6">
-      <WorkerRatesForm lotId={lot.id} rates={lot.workerRates} readOnly={readOnly} />
+      {canSeePrices ? (
+        <WorkerRatesForm lotId={lot.id} rates={lot.workerRates} readOnly={readOnly} />
+      ) : null}
 
       <ErpPageSection
         title="Worker Entries"
@@ -82,9 +87,11 @@ export function WorkersTab({ lot, readOnly = false }: WorkersTabProps) {
         />
       </ErpPageSection>
 
-      <WorkerSummaryTable entries={lot.workerEntries} rates={lot.workerRates} />
+      {canSeePrices ? (
+        <WorkerSummaryTable entries={lot.workerEntries} rates={lot.workerRates} />
+      ) : null}
 
-      <LaborPerQtyTable lot={lot} readOnly={readOnly} />
+      {canSeePrices ? <LaborPerQtyTable lot={lot} readOnly={readOnly} /> : null}
 
       <WorkerEntryForm
         open={formOpen}

@@ -49,6 +49,7 @@ export interface MaterialEntryRowInput {
 export interface MaterialPresetItem {
   productId: string;
   label: string;
+  quantity?: number;
 }
 
 interface MaterialAddDialogProps {
@@ -126,7 +127,7 @@ export function MaterialAddDialog({
       form.reset({
         rows: presetItems.map((preset) => ({
           inventoryId: preset.productId,
-          quantity: Number.NaN,
+          quantity: preset.quantity && preset.quantity > 0 ? preset.quantity : Number.NaN,
         })),
       });
       return;

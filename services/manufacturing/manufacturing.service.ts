@@ -143,34 +143,118 @@ export class ManufacturingService {
           data: catalogModel.boardPresets.map((p) => ({
             modelId: model.id,
             boardThicknessId: p.boardThicknessId,
+            length: p.length,
+            width: p.width,
+            quantity: p.quantity,
           })),
         });
+
+        for (const preset of catalogModel.boardPresets) {
+          const length = toNumber(preset.length);
+          const width = toNumber(preset.width);
+          if (length <= 0 || width <= 0 || preset.quantity <= 0) continue;
+          const inventories = await tx.boardInventory.findMany({
+            where: { boardThicknessId: preset.boardThicknessId },
+            select: { id: true },
+          });
+          if (inventories.length !== 1) continue;
+          const { sqftPerPiece, totalSqft } = calcBoardEntrySqft(
+            length,
+            width,
+            preset.quantity
+          );
+          await tx.manufacturingBoardEntry.create({
+            data: {
+              modelId: model.id,
+              boardInventoryId: inventories[0].id,
+              length: roundDecimal(length),
+              width: roundDecimal(width),
+              quantity: preset.quantity,
+              sqftPerPiece: roundDecimal(sqftPerPiece),
+              totalSqft: roundDecimal(totalSqft),
+            },
+          });
+        }
       }
       if (catalogModel.paintPresets.length > 0) {
         await tx.manufacturingModelPaintPreset.createMany({
           data: catalogModel.paintPresets.map((p) => ({
             modelId: model.id,
             paintProductId: p.paintProductId,
+            quantity: p.quantity,
           })),
         });
+        for (const preset of catalogModel.paintPresets) {
+          const qty = roundDecimal(toNumber(preset.quantity));
+          if (qty <= 0) continue;
+          const stockQty = materialEntryStockQty("paint", qty, input.quantity);
+          await reserveMaterialStock(tx, "paint", preset.paintProductId, stockQty, "Paint product");
+          await tx.manufacturingPaintEntry.create({
+            data: { modelId: model.id, paintProductId: preset.paintProductId, quantity: qty },
+          });
+        }
       }
       if (catalogModel.hardwarePresets.length > 0) {
         await tx.manufacturingModelHardwarePreset.createMany({
           data: catalogModel.hardwarePresets.map((p) => ({
             modelId: model.id,
             hardwareProductId: p.hardwareProductId,
+            quantity: p.quantity,
           })),
         });
+        for (const preset of catalogModel.hardwarePresets) {
+          const qty = roundDecimal(toNumber(preset.quantity));
+          if (qty <= 0) continue;
+          const stockQty = materialEntryStockQty("hardware", qty, input.quantity);
+          await reserveMaterialStock(
+            tx,
+            "hardware",
+            preset.hardwareProductId,
+            stockQty,
+            "Hardware product"
+          );
+          await tx.manufacturingHardwareEntry.create({
+            data: {
+              modelId: model.id,
+              hardwareProductId: preset.hardwareProductId,
+              quantity: qty,
+            },
+          });
+        }
       }
       if (catalogModel.packingPresets.length > 0) {
         await tx.manufacturingModelPackingPreset.createMany({
           data: catalogModel.packingPresets.map((p) => ({
             modelId: model.id,
             packingProductId: p.packingProductId,
+            quantity: p.quantity,
           })),
         });
+        for (const preset of catalogModel.packingPresets) {
+          const qty = roundDecimal(toNumber(preset.quantity));
+          if (qty <= 0) continue;
+          const stockQty = materialEntryStockQty("packing", qty, input.quantity);
+          await reserveMaterialStock(
+            tx,
+            "packing",
+            preset.packingProductId,
+            stockQty,
+            "Packing product"
+          );
+          await tx.manufacturingPackingEntry.create({
+            data: {
+              modelId: model.id,
+              packingProductId: preset.packingProductId,
+              quantity: qty,
+            },
+          });
+        }
       }
     });
+
+    await invalidateMaterialOptions("paint");
+    await invalidateMaterialOptions("hardware");
+    await invalidateMaterialOptions("packing");
 
     const updated = await prisma.manufacturingLot.findUnique({
       where: { id: lotId },

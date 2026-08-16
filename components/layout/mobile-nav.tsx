@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
+import { useCurrentUser } from "@/features/users/hooks/use-users";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -35,6 +36,8 @@ function ThemeToggle() {
 export function MobileNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: me } = useCurrentUser();
+  const isAdmin = me?.role === "ADMIN";
   const [open, setOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -84,7 +87,9 @@ export function MobileNav() {
                   <p className="px-2.5 pb-1.5 text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
                     {section.label}
                   </p>
-                  {section.items.map((item) => {
+                  {section.items
+                    .filter((item) => !("adminOnly" in item && item.adminOnly) || isAdmin)
+                    .map((item) => {
                     const Icon = item.icon;
                     const active =
                       pathname === item.href || pathname.startsWith(`${item.href}/`);

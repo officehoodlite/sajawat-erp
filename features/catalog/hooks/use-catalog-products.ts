@@ -54,6 +54,16 @@ export function useCatalogProducts() {
   });
 }
 
+export function useCatalogProductPicker(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.products.catalogPicker,
+    queryFn: () =>
+      apiFetch<CatalogProductDetailDto[]>("/api/inventory/products?detail=models"),
+    staleTime: 60 * 1000,
+    enabled,
+  });
+}
+
 export function useCatalogProduct(id: string) {
   return useQuery({
     queryKey: queryKeys.products.detail(id),
@@ -73,6 +83,7 @@ export function useCreateCatalogProduct() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalog });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalogPicker });
       toast.success("Product added");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -90,6 +101,7 @@ export function useUpdateCatalogProduct() {
     onSuccess: (_, vars) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalog });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalogPicker });
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(vars.id) });
       toast.success("Product updated");
     },
@@ -105,6 +117,7 @@ export function useDeleteCatalogProduct() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalog });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalogPicker });
       toast.success("Product deleted");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -122,6 +135,7 @@ export function useCreateCatalogProductModel(productId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalog });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalogPicker });
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(productId) });
       toast.success("Model added");
     },
@@ -139,6 +153,7 @@ export function useUpdateCatalogProductModel(productId: string) {
       ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalog });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalogPicker });
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(productId) });
       toast.success("Model updated");
     },
@@ -155,6 +170,7 @@ export function useDeleteCatalogProductModel(productId: string) {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalog });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalogPicker });
       void queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(productId) });
       toast.success("Model deleted");
     },

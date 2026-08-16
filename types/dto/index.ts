@@ -15,7 +15,18 @@ export interface ProductDto {
 
 export interface CatalogModelPresetItemDto {
   id: string;
+  productId: string;
   label: string;
+  quantity: number;
+}
+
+export interface CatalogBoardPresetItemDto {
+  id: string;
+  boardThicknessId: string;
+  label: string;
+  length: number;
+  width: number;
+  quantity: number;
 }
 
 export interface CatalogProductModelDto {
@@ -23,7 +34,7 @@ export interface CatalogProductModelDto {
   productId: string;
   modelName: string;
   partCount: number;
-  boardPresets: CatalogModelPresetItemDto[];
+  boardPresets: CatalogBoardPresetItemDto[];
   paintPresets: CatalogModelPresetItemDto[];
   hardwarePresets: CatalogModelPresetItemDto[];
   packingPresets: CatalogModelPresetItemDto[];
@@ -60,6 +71,7 @@ export interface BoardThicknessDto {
   boardId: string;
   thickness: string;
   materialName: string;
+  remainingSqft: number;
 }
 
 export interface BoardInventoryDto {
@@ -185,11 +197,15 @@ export interface ModelBoardPresetDto {
   label: string;
   materialName: string;
   thickness: string;
+  length: number;
+  width: number;
+  quantity: number;
 }
 
 export interface ModelMaterialPresetDto {
   productId: string;
   label: string;
+  quantity: number;
 }
 
 export interface ModelDto {

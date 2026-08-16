@@ -54,25 +54,9 @@ function nextWithCorrelation(request: NextRequest): NextResponse {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // APIs are gated by requireSession in the handler. Skipping the nested
+  // /api/auth/session fetch here removes an extra HTTP + DB hop per request.
   if (pathname.startsWith("/api/")) {
-    if (isPublicPath(pathname)) return nextWithCorrelation(request);
-
-    const authed = await isAuthenticated(request);
-    if (!authed) {
-      const correlationId =
-        request.headers.get("x-correlation-id")?.trim() || crypto.randomUUID();
-      return NextResponse.json(
-        {
-          error: true,
-          message: "Unauthorized",
-          correlationId,
-        },
-        {
-          status: 401,
-          headers: { "x-correlation-id": correlationId },
-        }
-      );
-    }
     return nextWithCorrelation(request);
   }
 

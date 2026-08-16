@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Layers, Package, Ruler } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { useSyncedTab } from "@/hooks/use-synced-tab";
+import { ArrowLeft, Download, Layers, Package, Ruler } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { SecondaryTabsList, SecondaryTabsTrigger } from "@/components/shared/dashboard-tabs";
 import { ErpPage } from "@/components/shared/erp-page";
@@ -21,6 +21,8 @@ import {
   PaintSummaryTab,
 } from "@/features/manufacturing/components/summary/material-summary-tab";
 import { useLotSummary } from "@/features/manufacturing/hooks/use-manufacturing";
+import { downloadLotExcel } from "@/features/manufacturing/utils/download-lot-excel";
+import { useCurrentUser } from "@/features/users/hooks/use-users";
 import { formatDate, formatSqft } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
@@ -35,14 +37,9 @@ const LOT_TABS = [
 ] as const;
 
 export function LotDetailClient({ lotId }: { lotId: string }) {
-  const router = useRouter();
   const { data: lot, isLoading } = useLotSummary(lotId);
-  const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const activeTab = LOT_TABS.includes(tabParam as (typeof LOT_TABS)[number])
-    ? (tabParam as (typeof LOT_TABS)[number])
-    : "models";
-
+  const { data: me } = useCurrentUser();
+  const [activeTab, setActiveTab] = useSyncedTab(LOT_TABS, "models");
   const [addModelOpen, setAddModelOpen] = useState(false);
 
   if (isLoading) {
@@ -85,6 +82,14 @@ export function LotDetailClient({ lotId }: { lotId: string }) {
             </p>
           </div>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void downloadLotExcel(lot, me?.workerPrices === true)}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Download Excel
+        </Button>
       </div>
 
       <StatCardGrid className="lg:grid-cols-3">
@@ -109,7 +114,7 @@ export function LotDetailClient({ lotId }: { lotId: string }) {
 
       <Tabs
         value={activeTab}
-        onValueChange={(value) => router.push(`/manufacturing/${lotId}?tab=${value}`)}
+        onValueChange={setActiveTab}
         className="space-y-6"
       >
         <SecondaryTabsList>

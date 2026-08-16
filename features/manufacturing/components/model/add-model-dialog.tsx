@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCatalogProducts } from "@/features/catalog/hooks/use-catalog-products";
+import { useCatalogProductPicker } from "@/features/catalog/hooks/use-catalog-products";
 import { createModelSchema, type CreateModelInput } from "@/validators/manufacturing";
 import { useCreateModel } from "@/features/manufacturing/hooks/use-manufacturing";
 
@@ -31,7 +31,7 @@ interface AddModelDialogProps {
 }
 
 export function AddModelDialog({ lotId, open, onOpenChange, disabled }: AddModelDialogProps) {
-  const { data: products = [] } = useCatalogProducts();
+  const { data: products = [] } = useCatalogProductPicker(open);
   const createModel = useCreateModel(lotId);
 
   const form = useForm<CreateModelInput>({

@@ -93,9 +93,9 @@ function buildPresetRows(
       options?.filter((opt) => opt.boardThicknessId === preset.boardThicknessId) ?? [];
     return {
       boardInventoryId: matches.length === 1 ? matches[0].id : "",
-      length: 0,
-      width: 0,
-      quantity: 1,
+      length: preset.length || 0,
+      width: preset.width || 0,
+      quantity: preset.quantity > 0 ? preset.quantity : 1,
       presetLabel: preset.label,
     };
   });

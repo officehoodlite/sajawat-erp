@@ -15,10 +15,13 @@ export async function GET(request: NextRequest) {
     const session = await requireSession();
     if (!session.ok) return session.response;
 
-    const detail = request.nextUrl.searchParams.get("detail") === "true";
-    const products = detail
-      ? await inventoryService.getCatalogProducts()
-      : await inventoryService.getProducts();
+    const detail = request.nextUrl.searchParams.get("detail");
+    const products =
+      detail === "true"
+        ? await inventoryService.getCatalogProducts()
+        : detail === "models"
+          ? await inventoryService.getCatalogProductPicker()
+          : await inventoryService.getProducts();
 
     const pagination = parseOptionalPagination(request.nextUrl.searchParams);
     if (!pagination) {

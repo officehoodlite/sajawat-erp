@@ -15,6 +15,7 @@ export const queryKeys = {
     all: ["products"] as const,
     detail: (id: string) => ["products", "detail", id] as const,
     catalog: ["products", "catalog"] as const,
+    catalogPicker: ["products", "catalog", "picker"] as const,
   },
   suppliers: {
     all: ["suppliers"] as const,
@@ -74,5 +75,11 @@ export const queryKeys = {
     lotLookup: (lotNumber: string) => ["production", "lot-lookup", lotNumber] as const,
     lotModels: (lotId: string) => ["production", "models", lotId] as const,
     suggestions: ["production", "suggestions"] as const,
+  },
+  auth: {
+    me: ["auth", "me"] as const,
+  },
+  users: {
+    all: ["users"] as const,
   },
 };

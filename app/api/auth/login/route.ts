@@ -7,10 +7,10 @@ import {
 } from "@/lib/api-response";
 import {
   AUTH_COOKIE,
+  authenticate,
   cleanupExpiredSessions,
   createSession,
   getSessionCookieOptions,
-  isValidCredentials,
 } from "@/lib/auth";
 import {
   LOGIN_IP_LIMIT,
@@ -62,7 +62,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (!(await isValidCredentials(username, password))) {
+    const principal = await authenticate(username, password);
+    if (!principal) {
       securityAudit({
         event: "login_failure",
         correlationId,
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
     // Opportunistic cleanup — does not affect login result
     void cleanupExpiredSessions().catch(() => undefined);
 
-    const sessionToken = await createSession();
+    const sessionToken = await createSession(principal.userId);
     const cookieStore = await cookies();
     cookieStore.set(AUTH_COOKIE, sessionToken, getSessionCookieOptions());
 

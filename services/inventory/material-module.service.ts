@@ -60,6 +60,10 @@ export class MaterialModuleService {
     return this.repo().findPurchases(query);
   }
 
+  getPurchase(id: string) {
+    return this.repo().findPurchaseById(id);
+  }
+
   async createPurchase(data: CreateMaterialPurchaseInput) {
     const purchase = await this.repo().createPurchase(data);
     await this.invalidateOptionsCache();

@@ -69,7 +69,7 @@ export function useLots(page: number, limit: number, search: string) {
   return useQuery({
     queryKey: queryKeys.lots.list(page, limit, search),
     queryFn: () =>
-      apiFetch<PaginatedResponse<LotListItemDto>>(
+      apiFetch<PaginatedResponse<LotListItemDto> & { lotCount: number; totalModels: number }>(
         `/api/manufacturing/lots?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`
       ),
     placeholderData: (previousData) => previousData,

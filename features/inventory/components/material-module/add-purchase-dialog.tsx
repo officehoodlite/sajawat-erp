@@ -82,7 +82,7 @@ export function AddPurchaseDialog({
     await onSubmit({
       productId: data.productId,
       supplierId: data.supplierId,
-      invoiceNumber: type === "paint" ? undefined : data.invoiceNumber || undefined,
+      invoiceNumber: type === "packing" ? data.invoiceNumber || undefined : undefined,
       quantity: data.quantity,
       rate: data.rate,
       purchaseDate: data.purchaseDate,
@@ -125,7 +125,7 @@ export function AddPurchaseDialog({
             value={form.watch("supplierId") as string | undefined}
             onChange={(v) => form.setValue("supplierId", v)}
           />
-          {type !== "paint" && (
+          {type === "packing" && (
             <div className="space-y-2">
               <Label>Invoice # (optional)</Label>
               <Input {...form.register("invoiceNumber")} />
