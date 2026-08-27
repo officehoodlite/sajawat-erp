@@ -64,6 +64,14 @@ export async function caughtErrorResponse(
     if (error.code === "P2002") {
       return errorResponse("A record with this name already exists.", 409, undefined, correlationId);
     }
+    if (error.code === "P2028") {
+      return errorResponse(
+        "Saving took too long. Try again, or save fewer materials at once.",
+        504,
+        undefined,
+        correlationId
+      );
+    }
     if (error.code === "P2021" || error.code === "P2022") {
       return errorResponse(
         "Database is missing required tables or columns. Run prisma migrate deploy, then retry.",

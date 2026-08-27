@@ -206,6 +206,8 @@ async function replaceModelPresets(
   }
 }
 
+const MODEL_WRITE_TX = { maxWait: 10_000, timeout: 20_000 } as const;
+
 export class ProductRepository {
   async findAll() {
     return prisma.product.findMany({ orderBy: { name: "asc" } });
@@ -344,7 +346,7 @@ export class ProductRepository {
     productId: string,
     data: CatalogProductModelWrite
   ): Promise<CatalogProductModelDto> {
-    const row = await prisma.$transaction(async (tx) => {
+    const createdId = await prisma.$transaction(async (tx) => {
       const created = await tx.productModel.create({
         data: {
           productId,
@@ -353,10 +355,12 @@ export class ProductRepository {
         },
       });
       await replaceModelPresets(tx, created.id, data);
-      return tx.productModel.findUniqueOrThrow({
-        where: { id: created.id },
-        include: productModelInclude,
-      });
+      return created.id;
+    }, MODEL_WRITE_TX);
+
+    const row = await prisma.productModel.findUniqueOrThrow({
+      where: { id: createdId },
+      include: productModelInclude,
     });
     await this.invalidateCache();
     return mapProductModel(row);
@@ -385,7 +389,7 @@ export class ProductRepository {
       );
     }
 
-    const row = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       await tx.productModel.update({
         where: { id: modelId },
         data: {
@@ -394,10 +398,11 @@ export class ProductRepository {
         },
       });
       await replaceModelPresets(tx, modelId, data);
-      return tx.productModel.findUniqueOrThrow({
-        where: { id: modelId },
-        include: productModelInclude,
-      });
+    }, MODEL_WRITE_TX);
+
+    const row = await prisma.productModel.findUniqueOrThrow({
+      where: { id: modelId },
+      include: productModelInclude,
     });
     await this.invalidateCache();
     return mapProductModel(row);
