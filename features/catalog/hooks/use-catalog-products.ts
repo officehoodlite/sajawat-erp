@@ -23,7 +23,7 @@ export function useCatalogThicknessOptions(enabled = true) {
 }
 
 export function useCatalogMaterialOptions(
-  type: "paint" | "hardware" | "packing" | "edgebinding",
+  type: "paint" | "hardware" | "packing" | "edgebinding" | "glass",
   enabled = true
 ) {
   return useQuery({

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSyncedTab } from "@/hooks/use-synced-tab";
-import { ArrowLeft, Box, Layers, Package, Paintbrush, Scissors } from "lucide-react";
+import { ArrowLeft, Box, Layers, Package, Paintbrush, Scissors, AppWindow } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -14,18 +14,20 @@ import { PaintTab } from "@/features/manufacturing/components/paint/paint-tab";
 import { HardwareTab } from "@/features/manufacturing/components/hardware/hardware-tab";
 import { PackingTab } from "@/features/manufacturing/components/packing/packing-tab";
 import { EdgeBindingTab } from "@/features/manufacturing/components/edgebinding/edge-binding-tab";
+import { GlassTab } from "@/features/manufacturing/components/glass/glass-tab";
 import {
   getModelBoardTotal,
   getTotalHardwareUsed,
   getTotalPaintUsed,
   getTotalPackingUsed,
   getTotalEdgeBindingUsed,
+  getTotalGlassUsed,
 } from "@/features/manufacturing/utils/consumption";
 import { useModel } from "@/features/manufacturing/hooks/use-manufacturing";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/utils/format";
 
-const TAB_VALUES = ["board", "paint", "hardware", "packing", "edgebinding"] as const;
+const TAB_VALUES = ["board", "paint", "hardware", "packing", "edgebinding", "glass"] as const;
 
 const TAB_LABELS: Record<(typeof TAB_VALUES)[number], string> = {
   board: "Board",
@@ -33,6 +35,7 @@ const TAB_LABELS: Record<(typeof TAB_VALUES)[number], string> = {
   hardware: "Hardware",
   packing: "Packing",
   edgebinding: "Edge Binding",
+  glass: "Glass",
 };
 
 export function ModelDetailClient({ lotId, modelId }: { lotId: string; modelId: string }) {
@@ -101,7 +104,7 @@ export function ModelDetailClient({ lotId, modelId }: { lotId: string; modelId: 
         </ErpPageSection>
       </div>
 
-      <StatCardGrid className="lg:grid-cols-5">
+      <StatCardGrid className="lg:grid-cols-3 xl:grid-cols-6">
         <StatCard
           label="Board Used"
           value={`${formatNumber(getModelBoardTotal(model))} sqft`}
@@ -127,6 +130,11 @@ export function ModelDetailClient({ lotId, modelId }: { lotId: string; modelId: 
           label="Edge Binding Entries"
           value={getTotalEdgeBindingUsed([model])}
           icon={Scissors}
+        />
+        <StatCard
+          label="Glass Entries"
+          value={getTotalGlassUsed([model])}
+          icon={AppWindow}
         />
       </StatCardGrid>
 
@@ -158,6 +166,9 @@ export function ModelDetailClient({ lotId, modelId }: { lotId: string; modelId: 
           </TabsContent>
           <TabsContent value="edgebinding" className="mt-0">
             <EdgeBindingTab lotId={lotId} model={model} />
+          </TabsContent>
+          <TabsContent value="glass" className="mt-0">
+            <GlassTab lotId={lotId} model={model} />
           </TabsContent>
         </ErpPageSection>
       </Tabs>

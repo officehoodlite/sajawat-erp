@@ -32,12 +32,12 @@ export const HARDWARE_PURCHASE_TEMPLATE_HEADERS = [
 ] as const;
 
 export async function downloadPurchaseTemplate(
-  kind: "boards" | "paint" | "hardware" | "packing" | "edgebinding"
+  kind: "boards" | "paint" | "hardware" | "packing" | "edgebinding" | "glass"
 ) {
   const headers =
     kind === "boards"
       ? [...BOARD_PURCHASE_TEMPLATE_HEADERS]
-      : kind === "hardware" || kind === "edgebinding"
+      : kind === "hardware" || kind === "edgebinding" || kind === "glass"
         ? [...HARDWARE_PURCHASE_TEMPLATE_HEADERS]
         : [...PAINT_PACKING_PURCHASE_TEMPLATE_HEADERS];
 

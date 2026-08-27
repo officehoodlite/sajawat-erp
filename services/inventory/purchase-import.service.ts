@@ -74,7 +74,9 @@ async function resolveMaterialProductId(module: MaterialModuleType, name: string
         ? await prisma.hardwareProduct.findMany({ where, select: { id: true } })
         : module === "edgebinding"
           ? await prisma.edgeBindingProduct.findMany({ where, select: { id: true } })
-          : await prisma.packingProduct.findMany({ where, select: { id: true } });
+          : module === "glass"
+            ? await prisma.glassProduct.findMany({ where, select: { id: true } })
+            : await prisma.packingProduct.findMany({ where, select: { id: true } });
   if (matches.length === 0) throw new Error(`Row ${row}: unknown product "${name.trim()}"`);
   if (matches.length > 1) throw new Error(`Row ${row}: product "${name.trim()}" is ambiguous`);
   return matches[0].id;

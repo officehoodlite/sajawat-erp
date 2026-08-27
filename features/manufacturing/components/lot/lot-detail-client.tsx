@@ -20,6 +20,7 @@ import {
   PackingSummaryTab,
   PaintSummaryTab,
   EdgeBindingSummaryTab,
+  GlassSummaryTab,
 } from "@/features/manufacturing/components/summary/material-summary-tab";
 import { useLotSummary } from "@/features/manufacturing/hooks/use-manufacturing";
 import { downloadLotExcel } from "@/features/manufacturing/utils/download-lot-excel";
@@ -35,6 +36,7 @@ const LOT_TABS = [
   "hardware",
   "packing",
   "edgebinding",
+  "glass",
   "workers",
 ] as const;
 
@@ -127,6 +129,7 @@ export function LotDetailClient({ lotId }: { lotId: string }) {
           <SecondaryTabsTrigger value="hardware">Hardware Summary</SecondaryTabsTrigger>
           <SecondaryTabsTrigger value="packing">Packing Summary</SecondaryTabsTrigger>
           <SecondaryTabsTrigger value="edgebinding">Edge Binding Summary</SecondaryTabsTrigger>
+          <SecondaryTabsTrigger value="glass">Glass Summary</SecondaryTabsTrigger>
           <SecondaryTabsTrigger value="workers">Workers</SecondaryTabsTrigger>
         </SecondaryTabsList>
 
@@ -161,6 +164,10 @@ export function LotDetailClient({ lotId }: { lotId: string }) {
 
         <TabsContent value="edgebinding">
           <EdgeBindingSummaryTab lot={lot} />
+        </TabsContent>
+
+        <TabsContent value="glass">
+          <GlassSummaryTab lot={lot} />
         </TabsContent>
 
         <TabsContent value="workers">

@@ -74,3 +74,14 @@ export function EdgeBindingSummaryTab({ lot }: { lot: LotSummaryDto }) {
     />
   );
 }
+
+export function GlassSummaryTab({ lot }: { lot: LotSummaryDto }) {
+  return (
+    <MaterialSummaryTab
+      title="Glass Consumption"
+      nameHeader="Glass"
+      rows={lot.glassConsumption}
+      emptyMessage="No glass usage recorded yet."
+    />
+  );
+}

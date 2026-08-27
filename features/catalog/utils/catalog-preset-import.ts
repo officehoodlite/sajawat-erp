@@ -6,7 +6,8 @@ export type CatalogPresetImportKind =
   | "paint"
   | "hardware"
   | "packing"
-  | "edgebinding";
+  | "edgebinding"
+  | "glass";
 
 export type CatalogImportOption = { id: string; label: string };
 

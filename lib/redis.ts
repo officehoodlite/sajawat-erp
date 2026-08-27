@@ -169,5 +169,6 @@ export const CACHE_KEYS = {
   hardwareOptions: "hardware:options",
   packingOptions: "packing:options",
   edgebindingOptions: "edgebinding:options",
+  glassOptions: "glass:options",
   suppliers: "suppliers:list",
 } as const;

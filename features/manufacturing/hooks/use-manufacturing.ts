@@ -41,7 +41,7 @@ function syncLotCaches(queryClient: QueryClient, lot: LotDetailDto) {
   void queryClient.invalidateQueries({ queryKey: queryKeys.lots.summary(lot.id) });
 }
 
-type InventoryScope = "boards" | "paint" | "hardware" | "packing" | "edgebinding";
+type InventoryScope = "boards" | "paint" | "hardware" | "packing" | "edgebinding" | "glass";
 
 function invalidateInventory(queryClient: QueryClient, scopes: InventoryScope[]) {
   for (const scope of scopes) {
@@ -217,7 +217,7 @@ export function useCompleteLot(id: string) {
     onSuccess: (data) => {
       syncLotCaches(queryClient, data);
       queryClient.invalidateQueries({ queryKey: queryKeys.lots.all });
-      invalidateInventory(queryClient, ["boards", "paint", "hardware", "packing", "edgebinding"]);
+      invalidateInventory(queryClient, ["boards", "paint", "hardware", "packing", "edgebinding", "glass"]);
       toast.success("Lot completed and stock deducted");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -234,7 +234,7 @@ export function useCreateModel(lotId: string) {
       }),
     onSuccess: (data) => {
       syncLotCaches(queryClient, data);
-      invalidateInventory(queryClient, ["boards", "paint", "hardware", "packing", "edgebinding"]);
+      invalidateInventory(queryClient, ["boards", "paint", "hardware", "packing", "edgebinding", "glass"]);
       toast.success("Model added");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -250,7 +250,7 @@ export function useDeleteModel(lotId: string) {
       }),
     onSuccess: (data) => {
       syncLotCaches(queryClient, data);
-      invalidateInventory(queryClient, ["paint", "hardware", "packing", "edgebinding"]);
+      invalidateInventory(queryClient, ["paint", "hardware", "packing", "edgebinding", "glass"]);
       toast.success("Model deleted");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -574,6 +574,64 @@ export function useUpdateEdgeBindingEntry(lotId: string) {
   });
 }
 
+export function useCreateGlassEntry(lotId: string, modelId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (
+      data:
+        | { glassProductId: string; quantity: number }
+        | Array<{ glassProductId: string; quantity: number }>
+    ) => {
+      const entries = Array.isArray(data) ? data : [data];
+      return postEntriesSequentially(entries, (entry) =>
+        apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/models/${modelId}/glass-entries`, {
+          method: "POST",
+          body: JSON.stringify(entry),
+        })
+      );
+    },
+    onSuccess: async ({ ack, count }) => {
+      await refreshAfterModelWrite(queryClient, ack.lotId, ack.modelId, ["glass"]);
+      toast.success(entryToast("Glass", count));
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useDeleteGlassEntry(lotId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (entryId: string) =>
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/glass-entries/${entryId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId, ["glass"]);
+      toast.success("Glass entry deleted");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useUpdateGlassEntry(lotId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { entryId: string; glassProductId: string; quantity: number }) =>
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/glass-entries/${data.entryId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          glassProductId: data.glassProductId,
+          quantity: data.quantity,
+        }),
+      }),
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId, ["glass"]);
+      toast.success("Glass entry updated");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
 export function useBoardOptions(enabled = true) {
   return useQuery({
     queryKey: queryKeys.boards.options,
@@ -628,6 +686,16 @@ export function useEdgeBindingOptions(enabled = true) {
     queryKey: queryKeys.edgebinding.options,
     queryFn: () =>
       apiFetch<Array<{ id: string; label: string }>>("/api/inventory/edgebinding-options"),
+    staleTime: 10 * 60 * 1000,
+    enabled,
+  });
+}
+
+export function useGlassOptions(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.glass.options,
+    queryFn: () =>
+      apiFetch<Array<{ id: string; label: string }>>("/api/inventory/glass-options"),
     staleTime: 10 * 60 * 1000,
     enabled,
   });

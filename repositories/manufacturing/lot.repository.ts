@@ -24,6 +24,7 @@ const lotInclude = {
       hardwareEntries: { include: { hardwareProduct: true } },
       packingEntries: { include: { packingProduct: true } },
       edgeBindingEntries: { include: { edgeBindingProduct: true } },
+      glassEntries: { include: { glassProduct: true } },
       boardPresets: {
         include: { boardThickness: { include: { board: true } } },
         orderBy: { createdAt: "asc" as const },
@@ -42,6 +43,10 @@ const lotInclude = {
       },
       edgeBindingPresets: {
         include: { edgeBindingProduct: true },
+        orderBy: { createdAt: "asc" as const },
+      },
+      glassPresets: {
+        include: { glassProduct: true },
         orderBy: { createdAt: "asc" as const },
       },
     },
@@ -121,6 +126,13 @@ function mapModel(row: {
     quantity: unknown;
     edgeBindingProduct: { name: string; unit: Unit };
   }>;
+  glassEntries: Array<{
+    id: string;
+    modelId: string;
+    glassProductId: string;
+    quantity: unknown;
+    glassProduct: { name: string; unit: Unit };
+  }>;
   boardPresets: Array<{
     boardThicknessId: string;
     length: unknown;
@@ -147,6 +159,11 @@ function mapModel(row: {
     edgeBindingProductId: string;
     quantity: unknown;
     edgeBindingProduct: { name: string; brand: string | null };
+  }>;
+  glassPresets: Array<{
+    glassProductId: string;
+    quantity: unknown;
+    glassProduct: { name: string; brand: string | null };
   }>;
 }): ModelDto {
   return {
@@ -195,6 +212,14 @@ function mapModel(row: {
       quantity: toNumber(e.quantity),
       unit: e.edgeBindingProduct.unit,
     })),
+    glassEntries: row.glassEntries.map((e) => ({
+      id: e.id,
+      modelId: e.modelId,
+      glassProductId: e.glassProductId,
+      glassName: e.glassProduct.name,
+      quantity: toNumber(e.quantity),
+      unit: e.glassProduct.unit,
+    })),
     boardPresets: row.boardPresets.map((p) => ({
       boardThicknessId: p.boardThicknessId,
       materialName: p.boardThickness.board.materialName,
@@ -222,6 +247,11 @@ function mapModel(row: {
     edgeBindingPresets: row.edgeBindingPresets.map((p) => ({
       productId: p.edgeBindingProductId,
       label: materialLabel(p.edgeBindingProduct.name, p.edgeBindingProduct.brand),
+      quantity: toNumber(p.quantity),
+    })),
+    glassPresets: row.glassPresets.map((p) => ({
+      productId: p.glassProductId,
+      label: materialLabel(p.glassProduct.name, p.glassProduct.brand),
       quantity: toNumber(p.quantity),
     })),
   };

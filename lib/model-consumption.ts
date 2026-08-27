@@ -6,11 +6,11 @@ export function totalForModelQty(perUnit: number, modelQuantity: number): number
 }
 
 export function materialEntryStockQty(
-  type: "paint" | "hardware" | "packing" | "edgebinding",
+  type: "paint" | "hardware" | "packing" | "edgebinding" | "glass",
   entryQty: number,
   modelQuantity: number
 ): number {
-  if (type === "hardware" || type === "edgebinding") {
+  if (type === "hardware" || type === "edgebinding" || type === "glass") {
     return totalForModelQty(entryQty, modelQuantity);
   }
   return roundDecimal(entryQty);

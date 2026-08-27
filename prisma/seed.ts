@@ -49,6 +49,12 @@ const edgeBindingProducts: { name: string; unit: Unit }[] = [
   { name: "PVC EDGE - 0.8 MM", unit: Unit.MTR },
 ];
 
+const glassProducts: { name: string; unit: Unit }[] = [
+  { name: "CLEAR GLASS - 4 MM", unit: Unit.SQFT },
+  { name: "CLEAR GLASS - 8 MM", unit: Unit.SQFT },
+  { name: "MIRROR", unit: Unit.SQFT },
+];
+
 async function clearCatalogData() {
   await prisma.productionEntry.deleteMany();
   await prisma.lotWorkerEntry.deleteMany();
@@ -59,12 +65,16 @@ async function clearCatalogData() {
   await prisma.manufacturingHardwareEntry.deleteMany();
   await prisma.manufacturingPackingEntry.deleteMany();
   await prisma.manufacturingEdgeBindingEntry.deleteMany();
+  await prisma.manufacturingGlassEntry.deleteMany();
   await prisma.manufacturingModelEdgeBindingPreset.deleteMany();
+  await prisma.manufacturingModelGlassPreset.deleteMany();
   await prisma.productModelEdgeBindingPreset.deleteMany();
+  await prisma.productModelGlassPreset.deleteMany();
   await prisma.paintConsumptionLog.deleteMany();
   await prisma.hardwareConsumptionLog.deleteMany();
   await prisma.packingConsumptionLog.deleteMany();
   await prisma.edgeBindingConsumptionLog.deleteMany();
+  await prisma.glassConsumptionLog.deleteMany();
   await prisma.manufacturingModel.deleteMany();
   await prisma.manufacturingLot.deleteMany();
   await prisma.productModel.deleteMany();
@@ -80,6 +90,8 @@ async function clearCatalogData() {
   await prisma.packingProduct.deleteMany();
   await prisma.edgeBindingPurchase.deleteMany();
   await prisma.edgeBindingProduct.deleteMany();
+  await prisma.glassPurchase.deleteMany();
+  await prisma.glassProduct.deleteMany();
   await prisma.supplier.deleteMany();
 }
 
@@ -99,7 +111,7 @@ async function seedBoards() {
 
 async function seedProducts(
   products: { name: string; unit: Unit }[],
-  model: "paint" | "hardware" | "packing" | "edgebinding"
+  model: "paint" | "hardware" | "packing" | "edgebinding" | "glass"
 ) {
   const openingQty = model === "paint" ? 100 : model === "hardware" ? 500 : 100;
   const purchaseDate = new Date();
@@ -152,6 +164,18 @@ async function seedProducts(
           purchaseDate,
         },
       });
+    } else if (model === "glass") {
+      const product = await prisma.glassProduct.create({ data });
+      await prisma.glassPurchase.create({
+        data: {
+          productId: product.id,
+          supplierId: supplier.id,
+          quantity: openingQty,
+          remainingQuantity: openingQty,
+          rate: 1,
+          purchaseDate,
+        },
+      });
     } else {
       const product = await prisma.packingProduct.create({ data });
       await prisma.packingPurchase.create({
@@ -178,6 +202,7 @@ async function main() {
   await seedProducts(hardwareProducts, "hardware");
   await seedProducts(packingProducts, "packing");
   await seedProducts(edgeBindingProducts, "edgebinding");
+  await seedProducts(glassProducts, "glass");
 
   console.log("Seed completed.");
 }

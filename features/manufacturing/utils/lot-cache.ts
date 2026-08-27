@@ -79,6 +79,13 @@ export function lotDetailToSummary(lot: LotDetailDto): LotSummaryDto {
       unit: e.unit,
     }))
   );
+  const glassEntries = lot.models.flatMap((m) =>
+    m.glassEntries.map((e) => ({
+      name: e.glassName,
+      quantity: totalForModelQty(e.quantity, m.quantity),
+      unit: e.unit,
+    }))
+  );
 
   const paintByModel = buildMaterialByModel(
     lot.models.flatMap((m) =>
@@ -120,6 +127,16 @@ export function lotDetailToSummary(lot: LotDetailDto): LotSummaryDto {
       }))
     )
   );
+  const glassByModel = buildMaterialByModel(
+    lot.models.flatMap((m) =>
+      m.glassEntries.map((e) => ({
+        modelId: m.id,
+        name: e.glassName,
+        quantity: totalForModelQty(e.quantity, m.quantity),
+        unit: e.unit,
+      }))
+    )
+  );
 
   const modelBoardInputs = lot.models.map((model) => ({
     id: model.id,
@@ -155,10 +172,12 @@ export function lotDetailToSummary(lot: LotDetailDto): LotSummaryDto {
     hardwareConsumption: groupMaterialConsumption(hardwareEntries),
     packingConsumption: groupMaterialConsumption(packingEntries),
     edgeBindingConsumption: groupMaterialConsumption(edgeBindingEntries),
+    glassConsumption: groupMaterialConsumption(glassEntries),
     paintByModel,
     hardwareByModel,
     packingByModel,
     edgeBindingByModel,
+    glassByModel,
     workerRates: { ...DEFAULT_WORKER_RATES },
     workerEntries: [],
     workerSummaries: computeWorkerSummaries([], DEFAULT_WORKER_RATES),

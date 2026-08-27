@@ -39,11 +39,13 @@ export interface CatalogProductModelDto {
   hardwarePresetCount: number;
   packingPresetCount: number;
   edgeBindingPresetCount: number;
+  glassPresetCount: number;
   boardPresets: CatalogBoardPresetItemDto[];
   paintPresets: CatalogModelPresetItemDto[];
   hardwarePresets: CatalogModelPresetItemDto[];
   packingPresets: CatalogModelPresetItemDto[];
   edgeBindingPresets: CatalogModelPresetItemDto[];
+  glassPresets: CatalogModelPresetItemDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -178,6 +180,15 @@ export interface EdgeBindingEntryDto {
   unit: Unit;
 }
 
+export interface GlassEntryDto {
+  id: string;
+  modelId: string;
+  glassProductId: string;
+  glassName: string;
+  quantity: number;
+  unit: Unit;
+}
+
 export interface LotListItemDto {
   id: string;
   lotNumber: string;
@@ -238,11 +249,13 @@ export interface ModelDto {
   hardwareEntries: HardwareEntryDto[];
   packingEntries: PackingEntryDto[];
   edgeBindingEntries: EdgeBindingEntryDto[];
+  glassEntries: GlassEntryDto[];
   boardPresets: ModelBoardPresetDto[];
   paintPresets: ModelMaterialPresetDto[];
   hardwarePresets: ModelMaterialPresetDto[];
   packingPresets: ModelMaterialPresetDto[];
   edgeBindingPresets: ModelMaterialPresetDto[];
+  glassPresets: ModelMaterialPresetDto[];
 }
 
 export interface BoardUsageSummaryDto {
@@ -334,10 +347,12 @@ export interface LotSummaryDto {
   hardwareConsumption: MaterialConsumptionSummaryDto[];
   packingConsumption: MaterialConsumptionSummaryDto[];
   edgeBindingConsumption: MaterialConsumptionSummaryDto[];
+  glassConsumption: MaterialConsumptionSummaryDto[];
   paintByModel: MaterialByModelRowDto[];
   hardwareByModel: MaterialByModelRowDto[];
   packingByModel: MaterialByModelRowDto[];
   edgeBindingByModel: MaterialByModelRowDto[];
+  glassByModel: MaterialByModelRowDto[];
   workerRates: LotWorkerRatesDto;
   workerEntries: LotWorkerEntryDto[];
   workerSummaries: LotWorkerSummaryDto[];
@@ -403,6 +418,7 @@ export interface ModelLotSummaryDto {
   hardware: ModelLotMaterialLineDto[];
   packing: ModelLotMaterialLineDto[];
   edgeBinding: ModelLotMaterialLineDto[];
+  glass: ModelLotMaterialLineDto[];
 }
 
 export interface CatalogModelLotSummariesDto {

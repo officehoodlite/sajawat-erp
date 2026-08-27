@@ -93,6 +93,12 @@ export async function downloadLotExcel(lot: LotSummaryDto, includeWorkerPrices: 
     ["Material", "Unit", "Quantity"],
     lot.edgeBindingConsumption.map((row) => [row.name, row.unit, row.quantity])
   );
+  addSheet(
+    workbook,
+    "Glass",
+    ["Material", "Unit", "Quantity"],
+    lot.glassConsumption.map((row) => [row.name, row.unit, row.quantity])
+  );
 
   addSheet(
     workbook,
@@ -172,6 +178,23 @@ export async function downloadLotExcel(lot: LotSummaryDto, includeWorkerPrices: 
       ...materialRows(lot, "Hardware", lot.hardwareByModel),
       ...materialRows(lot, "Packing", lot.packingByModel),
       ...materialRows(lot, "Edge Binding", lot.edgeBindingByModel),
+      ...materialRows(lot, "Glass", lot.glassByModel),
+      [],
+      ["Worker Summary"],
+      includeWorkerPrices
+        ? ["Labor type", "Count", "Rate", "Total"]
+        : ["Labor type", "Count"],
+      ...(includeWorkerPrices
+        ? computeWorkerLotTotals(lot.workerEntries, lot.workerRates).map((row) => [
+            row.category,
+            row.count,
+            row.rate,
+            row.total,
+          ])
+        : computeWorkerLotTotals(lot.workerEntries, lot.workerRates).map((row) => [
+            row.category,
+            row.count,
+          ])),
     ]
   );
 

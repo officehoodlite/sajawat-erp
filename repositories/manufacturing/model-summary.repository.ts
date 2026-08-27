@@ -66,6 +66,7 @@ export async function findCatalogModelLotSummaries(
       hardwareEntries: { include: { hardwareProduct: true } },
       packingEntries: { include: { packingProduct: true } },
       edgeBindingEntries: { include: { edgeBindingProduct: true } },
+      glassEntries: { include: { glassProduct: true } },
     },
     orderBy: { lot: { createdAt: "desc" } },
     take: 25,
@@ -126,6 +127,15 @@ export async function findCatalogModelLotSummaries(
       qty
     );
 
+    const glass = groupLines(
+      model.glassEntries.map((e) => ({
+        label: e.glassProduct.name,
+        unit: e.glassProduct.unit,
+        total: totalForModelQty(toNumber(e.quantity), qty),
+      })),
+      qty
+    );
+
     lots.push({
       lotId: model.lot.id,
       lotNumber: model.lot.lotNumber,
@@ -137,6 +147,7 @@ export async function findCatalogModelLotSummaries(
       hardware,
       packing,
       edgeBinding,
+      glass,
     });
   }
 

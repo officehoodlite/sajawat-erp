@@ -139,6 +139,7 @@ const catalogModelPresetIdsSchema = z.object({
   hardwarePresets: z.array(catalogMaterialPresetWriteSchema).max(200).optional().default([]),
   packingPresets: z.array(catalogMaterialPresetWriteSchema).max(200).optional().default([]),
   edgeBindingPresets: z.array(catalogMaterialPresetWriteSchema).max(200).optional().default([]),
+  glassPresets: z.array(catalogMaterialPresetWriteSchema).max(200).optional().default([]),
 });
 
 const catalogModelFieldsSchema = z
@@ -158,6 +159,7 @@ function toCatalogModelWrite(data: z.infer<typeof catalogModelFieldsSchema>) {
     hardwarePresets: data.hardwarePresets,
     packingPresets: data.packingPresets,
     edgeBindingPresets: data.edgeBindingPresets,
+    glassPresets: data.glassPresets,
   };
 }
 

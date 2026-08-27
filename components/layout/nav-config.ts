@@ -5,6 +5,7 @@ import {
   Package,
   Paintbrush,
   Scissors,
+  AppWindow,
   ShoppingBag,
   Truck,
   Users,
@@ -36,6 +37,7 @@ export const navSections = [
       { href: "/inventory/hardware", label: "Hardware", icon: Wrench },
       { href: "/inventory/packing", label: "Packing", icon: Package },
       { href: "/inventory/edge-binding", label: "Edge Binding", icon: Scissors },
+      { href: "/inventory/glass", label: "Glass", icon: AppWindow },
     ],
   },
   {

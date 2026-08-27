@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
+import { Download } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { PageToolbar } from "@/components/shared/page-toolbar";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddPurchaseDialog } from "@/features/inventory/components/material-module/add-purchase-dialog";
 import { ImportPurchasesActions } from "@/features/inventory/components/shared/import-purchases-menu";
@@ -12,9 +14,10 @@ import {
   useCreateMaterialPurchase,
   useMaterialStock,
 } from "@/features/inventory/hooks/use-material-module";
+import { downloadCsv } from "@/lib/csv-download";
 import { PAGE_SIZE, paginateClient } from "@/lib/pagination";
 import type { MaterialModuleType } from "@/types/enums";
-import { UNIT_LABELS } from "@/types/enums";
+import { MATERIAL_MODULE_LABELS, UNIT_LABELS } from "@/types/enums";
 import type { MaterialStockDto } from "@/types/material-module";
 import { formatNumber } from "@/utils/format";
 import type { CreateMaterialPurchaseInput } from "@/validators/inventory";
@@ -67,6 +70,19 @@ export function StockTab({ type }: StockTabProps) {
     await createPurchase.mutateAsync(values);
   };
 
+  const handleExport = () => {
+    downloadCsv(`${MATERIAL_MODULE_LABELS[type]}-stock.csv`, [
+      ["Product", "Brand", "Unit", "Remaining", "Status"],
+      ...(data ?? []).map((row) => [
+        row.name,
+        row.brand ?? "",
+        UNIT_LABELS[row.unit],
+        row.remainingStock,
+        row.isActive ? "Active" : "Archived",
+      ]),
+    ]);
+  };
+
   if (isLoading && !data) {
     return <Skeleton className="h-64 w-full rounded-xl" />;
   }
@@ -75,7 +91,13 @@ export function StockTab({ type }: StockTabProps) {
     <div className="space-y-4">
       <PageToolbar
         actions={
-          <ImportPurchasesActions kind={type} onAdd={() => setPurchaseOpen(true)} />
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" onClick={handleExport}>
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+            <ImportPurchasesActions kind={type} onAdd={() => setPurchaseOpen(true)} />
+          </div>
         }
       />
 

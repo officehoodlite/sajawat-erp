@@ -45,6 +45,7 @@ function presetSummary(model: CatalogProductModelDto) {
     model.hardwarePresetCount ? `${model.hardwarePresetCount} hw` : null,
     model.packingPresetCount ? `${model.packingPresetCount} pack` : null,
     model.edgeBindingPresetCount ? `${model.edgeBindingPresetCount} edge` : null,
+    model.glassPresetCount ? `${model.glassPresetCount} glass` : null,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : "—";
 }
@@ -153,6 +154,7 @@ export function ProductsPageClient() {
         hardwarePresets: [],
         packingPresets: [],
         edgeBindingPresets: [],
+        glassPresets: [],
       });
       setModelFormOpen(false);
       router.push(modelMaterialsHref(selectedId, created.id));
@@ -378,7 +380,7 @@ export function ProductsPageClient() {
             ) : null}
             <p className="text-xs text-muted-foreground">
               After creating the model, you will set its default boards, paint, hardware,
-              packing, and edge binding on the next page.
+              packing, edge binding, and glass on the next page.
             </p>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setModelFormOpen(false)}>

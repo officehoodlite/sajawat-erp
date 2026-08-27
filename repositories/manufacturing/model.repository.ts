@@ -41,6 +41,7 @@ const modelInclude = {
   hardwareEntries: { include: { hardwareProduct: true } },
   packingEntries: { include: { packingProduct: true } },
   edgeBindingEntries: { include: { edgeBindingProduct: true } },
+  glassEntries: { include: { glassProduct: true } },
   boardPresets: {
     include: { boardThickness: { include: { board: true } } },
     orderBy: { createdAt: "asc" as const },
@@ -59,6 +60,10 @@ const modelInclude = {
   },
   edgeBindingPresets: {
     include: { edgeBindingProduct: true },
+    orderBy: { createdAt: "asc" as const },
+  },
+  glassPresets: {
+    include: { glassProduct: true },
     orderBy: { createdAt: "asc" as const },
   },
   lot: true,
@@ -137,6 +142,13 @@ function mapModel(row: {
     quantity: unknown;
     edgeBindingProduct: { name: string; unit: Unit };
   }>;
+  glassEntries: Array<{
+    id: string;
+    modelId: string;
+    glassProductId: string;
+    quantity: unknown;
+    glassProduct: { name: string; unit: Unit };
+  }>;
   boardPresets: Array<{
     boardThicknessId: string;
     length: unknown;
@@ -163,6 +175,11 @@ function mapModel(row: {
     edgeBindingProductId: string;
     quantity: unknown;
     edgeBindingProduct: { name: string; brand: string | null };
+  }>;
+  glassPresets: Array<{
+    glassProductId: string;
+    quantity: unknown;
+    glassProduct: { name: string; brand: string | null };
   }>;
 }): ModelDto {
   return {
@@ -211,6 +228,14 @@ function mapModel(row: {
       quantity: toNumber(e.quantity),
       unit: e.edgeBindingProduct.unit,
     })),
+    glassEntries: row.glassEntries.map((e) => ({
+      id: e.id,
+      modelId: e.modelId,
+      glassProductId: e.glassProductId,
+      glassName: e.glassProduct.name,
+      quantity: toNumber(e.quantity),
+      unit: e.glassProduct.unit,
+    })),
     boardPresets: row.boardPresets.map((p) => ({
       boardThicknessId: p.boardThicknessId,
       materialName: p.boardThickness.board.materialName,
@@ -238,6 +263,11 @@ function mapModel(row: {
     edgeBindingPresets: row.edgeBindingPresets.map((p) => ({
       productId: p.edgeBindingProductId,
       label: materialLabel(p.edgeBindingProduct.name, p.edgeBindingProduct.brand),
+      quantity: toNumber(p.quantity),
+    })),
+    glassPresets: row.glassPresets.map((p) => ({
+      productId: p.glassProductId,
+      label: materialLabel(p.glassProduct.name, p.glassProduct.brand),
       quantity: toNumber(p.quantity),
     })),
   };
@@ -359,6 +389,10 @@ export function mapLotSummaryFromQuery(lot: {
       quantity: unknown;
       edgeBindingProduct: { name: string; unit: Unit };
     }>;
+    glassEntries: Array<{
+      quantity: unknown;
+      glassProduct: { name: string; unit: Unit };
+    }>;
   }>;
 }): LotSummaryDto {
   const models: ModelSummaryDto[] = lot.models.map((model) => ({
@@ -458,6 +492,13 @@ export function mapLotSummaryFromQuery(lot: {
       unit: e.edgeBindingProduct.unit,
     }))
   );
+  const glassEntries = lot.models.flatMap((m) =>
+    m.glassEntries.map((e) => ({
+      name: e.glassProduct.name,
+      quantity: totalForModelQty(toNumber(e.quantity), m.quantity),
+      unit: e.glassProduct.unit,
+    }))
+  );
 
   const paintByModel = buildMaterialByModel(
     lot.models.flatMap((m) =>
@@ -499,6 +540,16 @@ export function mapLotSummaryFromQuery(lot: {
       }))
     )
   );
+  const glassByModel = buildMaterialByModel(
+    lot.models.flatMap((m) =>
+      m.glassEntries.map((e) => ({
+        modelId: m.id,
+        name: e.glassProduct.name,
+        quantity: totalForModelQty(toNumber(e.quantity), m.quantity),
+        unit: e.glassProduct.unit,
+      }))
+    )
+  );
 
   const workerRates = mapWorkerRates(lot.workerRates);
   const workerEntries = (lot.workerEntries ?? []).map(mapWorkerEntry);
@@ -524,10 +575,12 @@ export function mapLotSummaryFromQuery(lot: {
     hardwareConsumption: groupMaterialConsumption(hardwareEntries),
     packingConsumption: groupMaterialConsumption(packingEntries),
     edgeBindingConsumption: groupMaterialConsumption(edgeBindingEntries),
+    glassConsumption: groupMaterialConsumption(glassEntries),
     paintByModel,
     hardwareByModel,
     packingByModel,
     edgeBindingByModel,
+    glassByModel,
     workerRates,
     workerEntries,
     workerSummaries,
@@ -594,6 +647,12 @@ const summaryInclude = {
         select: {
           quantity: true,
           edgeBindingProduct: { select: { name: true, unit: true } },
+        },
+      },
+      glassEntries: {
+        select: {
+          quantity: true,
+          glassProduct: { select: { name: true, unit: true } },
         },
       },
     },

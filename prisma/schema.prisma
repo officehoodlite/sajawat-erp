@@ -55,6 +55,7 @@ model Supplier {
   hardwarePurchases HardwarePurchase[]
   packingPurchases  PackingPurchase[]
   edgeBindingPurchases EdgeBindingPurchase[]
+  glassPurchases    GlassPurchase[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 }
@@ -305,6 +306,58 @@ model EdgeBindingConsumptionLog {
   @@index([lotId])
 }
 
+model GlassProduct {
+  id                          String                            @id @default(cuid())
+  name                        String                            @unique
+  brand                       String?
+  unit                        Unit
+  description                 String?
+  isActive                    Boolean                           @default(true)
+  remainingStock              Decimal                           @default(0) @db.Decimal(18, 6)
+  purchases                   GlassPurchase[]
+  consumptions                GlassConsumptionLog[]
+  glassEntries                ManufacturingGlassEntry[]
+  productModelGlassPresets    ProductModelGlassPreset[]
+  manufacturingGlassPresets   ManufacturingModelGlassPreset[]
+  createdAt                   DateTime                          @default(now())
+  updatedAt                   DateTime                          @updatedAt
+}
+
+model GlassPurchase {
+  id                String       @id @default(cuid())
+  productId         String
+  supplierId        String?
+  invoiceNumber     String?
+  quantity          Decimal      @db.Decimal(18, 6)
+  remainingQuantity Decimal      @db.Decimal(18, 6)
+  rate              Decimal?     @db.Decimal(18, 6)
+  purchaseDate      DateTime
+  remarks           String?
+  product           GlassProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier          Supplier?    @relation(fields: [supplierId], references: [id])
+  createdAt         DateTime     @default(now())
+
+  @@index([productId])
+  @@index([purchaseDate])
+}
+
+model GlassConsumptionLog {
+  id             String             @id @default(cuid())
+  productId      String
+  lotId          String
+  modelId        String
+  quantity       Decimal            @db.Decimal(18, 6)
+  remainingAfter Decimal            @db.Decimal(18, 6)
+  consumedAt     DateTime           @default(now())
+  product        GlassProduct       @relation(fields: [productId], references: [id])
+  lot            ManufacturingLot   @relation(fields: [lotId], references: [id])
+  model          ManufacturingModel @relation(fields: [modelId], references: [id])
+
+  @@index([productId])
+  @@index([consumedAt])
+  @@index([lotId])
+}
+
 model Product {
   id                  String               @id @default(cuid())
   name                String               @unique
@@ -326,6 +379,7 @@ model ProductModel {
   hardwarePresets     ProductModelHardwarePreset[]
   packingPresets      ProductModelPackingPreset[]
   edgeBindingPresets  ProductModelEdgeBindingPreset[]
+  glassPresets        ProductModelGlassPreset[]
   createdAt           DateTime                      @default(now())
   updatedAt           DateTime                      @updatedAt
 
@@ -394,6 +448,18 @@ model ProductModelEdgeBindingPreset {
   @@index([productModelId])
 }
 
+model ProductModelGlassPreset {
+  id             String       @id @default(cuid())
+  productModelId String
+  glassProductId String
+  quantity       Decimal      @default(0) @db.Decimal(18, 6)
+  productModel   ProductModel @relation(fields: [productModelId], references: [id], onDelete: Cascade)
+  glassProduct   GlassProduct @relation(fields: [glassProductId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@index([productModelId])
+}
+
 model ManufacturingLot {
   id                   String                    @id @default(cuid())
   lotNumber            String                    @unique
@@ -406,6 +472,7 @@ model ManufacturingLot {
   hardwareConsumptions HardwareConsumptionLog[]
   packingConsumptions  PackingConsumptionLog[]
   edgeBindingConsumptions EdgeBindingConsumptionLog[]
+  glassConsumptions    GlassConsumptionLog[]
   actualBoardEntries   LotActualBoardEntry[]
   workerRates          LotWorkerRates?
   workerEntries        LotWorkerEntry[]
@@ -430,15 +497,18 @@ model ManufacturingModel {
   hardwareEntries      ManufacturingHardwareEntry[]
   packingEntries       ManufacturingPackingEntry[]
   edgeBindingEntries   ManufacturingEdgeBindingEntry[]
+  glassEntries         ManufacturingGlassEntry[]
   boardPresets         ManufacturingModelBoardPreset[]
   paintPresets         ManufacturingModelPaintPreset[]
   hardwarePresets      ManufacturingModelHardwarePreset[]
   packingPresets       ManufacturingModelPackingPreset[]
   edgeBindingPresets   ManufacturingModelEdgeBindingPreset[]
+  glassPresets         ManufacturingModelGlassPreset[]
   paintConsumptions    PaintConsumptionLog[]
   hardwareConsumptions HardwareConsumptionLog[]
   packingConsumptions  PackingConsumptionLog[]
   edgeBindingConsumptions EdgeBindingConsumptionLog[]
+  glassConsumptions    GlassConsumptionLog[]
   productionEntries    ProductionEntry[]
   createdAt            DateTime                            @default(now())
   updatedAt            DateTime                            @updatedAt
@@ -505,6 +575,18 @@ model ManufacturingModelEdgeBindingPreset {
   model                ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
   edgeBindingProduct   EdgeBindingProduct @relation(fields: [edgeBindingProductId], references: [id])
   createdAt            DateTime           @default(now())
+
+  @@index([modelId])
+}
+
+model ManufacturingModelGlassPreset {
+  id             String             @id @default(cuid())
+  modelId        String
+  glassProductId String
+  quantity       Decimal            @default(0) @db.Decimal(18, 6)
+  model          ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  glassProduct   GlassProduct       @relation(fields: [glassProductId], references: [id])
+  createdAt      DateTime           @default(now())
 
   @@index([modelId])
 }
@@ -592,6 +674,19 @@ model ManufacturingEdgeBindingEntry {
   edgeBindingProduct   EdgeBindingProduct @relation(fields: [edgeBindingProductId], references: [id])
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
+}
+
+model ManufacturingGlassEntry {
+  id             String             @id @default(cuid())
+  modelId        String
+  glassProductId String
+  quantity       Decimal            @db.Decimal(18, 6)
+  model          ManufacturingModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  glassProduct   GlassProduct       @relation(fields: [glassProductId], references: [id])
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([modelId])
 }
 
 model LotActualBoardEntry {

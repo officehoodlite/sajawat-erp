@@ -68,9 +68,12 @@ function buildMatrixRows(lots: ModelLotSummaryDto[]): MatrixRow[] {
     for (const line of lot.edgeBinding) {
       upsert("Edge Binding", line.label, line.unit, lot.lotId, line.perUnit);
     }
+    for (const line of lot.glass) {
+      upsert("Glass", line.label, line.unit, lot.lotId, line.perUnit);
+    }
   }
 
-  const categoryOrder = ["Boards", "Paint", "Hardware", "Packing", "Edge Binding"];
+  const categoryOrder = ["Boards", "Paint", "Hardware", "Packing", "Edge Binding", "Glass"];
   return Array.from(rows.values()).sort((a, b) => {
     const ca = categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
     if (ca !== 0) return ca;

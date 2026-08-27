@@ -36,7 +36,9 @@ async function invalidateMaterialOptions(type: MaterialType) {
         ? CACHE_KEYS.hardwareOptions
         : type === "packing"
           ? CACHE_KEYS.packingOptions
-          : CACHE_KEYS.edgebindingOptions;
+          : type === "edgebinding"
+            ? CACHE_KEYS.edgebindingOptions
+            : CACHE_KEYS.glassOptions;
   await cacheDel(key);
 }
 
@@ -66,6 +68,7 @@ const lotInclude = {
       hardwareEntries: { include: { hardwareProduct: true } },
       packingEntries: { include: { packingProduct: true } },
       edgeBindingEntries: { include: { edgeBindingProduct: true } },
+      glassEntries: { include: { glassProduct: true } },
       boardPresets: {
         include: { boardThickness: { include: { board: true } } },
         orderBy: { createdAt: "asc" as const },
@@ -84,6 +87,10 @@ const lotInclude = {
       },
       edgeBindingPresets: {
         include: { edgeBindingProduct: true },
+        orderBy: { createdAt: "asc" as const },
+      },
+      glassPresets: {
+        include: { glassProduct: true },
         orderBy: { createdAt: "asc" as const },
       },
     },
@@ -135,6 +142,7 @@ export class ManufacturingService {
         hardwarePresets: true,
         packingPresets: true,
         edgeBindingPresets: true,
+        glassPresets: true,
       },
     });
     if (!catalogModel) throw new Error("Catalog model not found for selected product");
@@ -291,12 +299,41 @@ export class ManufacturingService {
           });
         }
       }
+      if (catalogModel.glassPresets.length > 0) {
+        await tx.manufacturingModelGlassPreset.createMany({
+          data: catalogModel.glassPresets.map((p) => ({
+            modelId: model.id,
+            glassProductId: p.glassProductId,
+            quantity: p.quantity,
+          })),
+        });
+        for (const preset of catalogModel.glassPresets) {
+          const qty = roundDecimal(toNumber(preset.quantity));
+          if (qty <= 0) continue;
+          const stockQty = materialEntryStockQty("glass", qty, input.quantity);
+          await reserveMaterialStock(
+            tx,
+            "glass",
+            preset.glassProductId,
+            stockQty,
+            "Glass product"
+          );
+          await tx.manufacturingGlassEntry.create({
+            data: {
+              modelId: model.id,
+              glassProductId: preset.glassProductId,
+              quantity: qty,
+            },
+          });
+        }
+      }
     });
 
     await invalidateMaterialOptions("paint");
     await invalidateMaterialOptions("hardware");
     await invalidateMaterialOptions("packing");
     await invalidateMaterialOptions("edgebinding");
+    await invalidateMaterialOptions("glass");
 
     const updated = await prisma.manufacturingLot.findUnique({
       where: { id: lotId },
@@ -633,6 +670,14 @@ export class ManufacturingService {
     return this.updateMaterialEntry("edgebinding", entryId, edgeBindingProductId, quantity);
   }
 
+  async createGlassEntry(modelId: string, glassProductId: string, quantity: number) {
+    return this.createMaterialEntry("glass", modelId, glassProductId, quantity);
+  }
+
+  async updateGlassEntry(entryId: string, glassProductId: string, quantity: number) {
+    return this.updateMaterialEntry("glass", entryId, glassProductId, quantity);
+  }
+
   private async createMaterialEntry(
     type: MaterialType,
     modelId: string,
@@ -652,7 +697,9 @@ export class ManufacturingService {
           ? "Hardware product"
           : type === "packing"
             ? "Packing product"
-            : "Edge binding product";
+            : type === "edgebinding"
+              ? "Edge binding product"
+              : "Glass product";
 
     const qty = roundDecimal(quantity);
     const stockQty = materialEntryStockQty(type, qty, model.quantity);
@@ -672,9 +719,13 @@ export class ManufacturingService {
         await tx.manufacturingPackingEntry.create({
           data: { modelId, packingProductId: productId, quantity: qty },
         });
-      } else {
+      } else if (type === "edgebinding") {
         await tx.manufacturingEdgeBindingEntry.create({
           data: { modelId, edgeBindingProductId: productId, quantity: qty },
+        });
+      } else {
+        await tx.manufacturingGlassEntry.create({
+          data: { modelId, glassProductId: productId, quantity: qty },
         });
       }
     });
@@ -726,10 +777,15 @@ export class ManufacturingService {
           where: { id: entryId },
           data: { packingProductId: productId, quantity: newQty },
         });
-      } else {
+      } else if (type === "edgebinding") {
         await tx.manufacturingEdgeBindingEntry.update({
           where: { id: entryId },
           data: { edgeBindingProductId: productId, quantity: newQty },
+        });
+      } else {
+        await tx.manufacturingGlassEntry.update({
+          where: { id: entryId },
+          data: { glassProductId: productId, quantity: newQty },
         });
       }
     });
@@ -755,6 +811,10 @@ export class ManufacturingService {
     return this.deleteMaterialEntry("edgebinding", entryId);
   }
 
+  async deleteGlassEntry(entryId: string) {
+    return this.deleteMaterialEntry("glass", entryId);
+  }
+
   private async deleteMaterialEntry(type: MaterialType, entryId: string) {
     const entry = await this.getMaterialEntry(type, entryId);
     const model = await prisma.manufacturingModel.findUnique({
@@ -772,7 +832,8 @@ export class ManufacturingService {
       if (type === "paint") await tx.manufacturingPaintEntry.delete({ where: { id: entryId } });
       else if (type === "hardware") await tx.manufacturingHardwareEntry.delete({ where: { id: entryId } });
       else if (type === "packing") await tx.manufacturingPackingEntry.delete({ where: { id: entryId } });
-      else await tx.manufacturingEdgeBindingEntry.delete({ where: { id: entryId } });
+      else if (type === "edgebinding") await tx.manufacturingEdgeBindingEntry.delete({ where: { id: entryId } });
+      else await tx.manufacturingGlassEntry.delete({ where: { id: entryId } });
     });
 
     await invalidateMaterialOptions(type);
@@ -796,9 +857,14 @@ export class ManufacturingService {
       if (!e) throw new Error("Entry not found");
       return { modelId: e.modelId, productId: e.packingProductId, quantity: e.quantity };
     }
-    const e = await prisma.manufacturingEdgeBindingEntry.findUnique({ where: { id: entryId } });
+    if (type === "edgebinding") {
+      const e = await prisma.manufacturingEdgeBindingEntry.findUnique({ where: { id: entryId } });
+      if (!e) throw new Error("Entry not found");
+      return { modelId: e.modelId, productId: e.edgeBindingProductId, quantity: e.quantity };
+    }
+    const e = await prisma.manufacturingGlassEntry.findUnique({ where: { id: entryId } });
     if (!e) throw new Error("Entry not found");
-    return { modelId: e.modelId, productId: e.edgeBindingProductId, quantity: e.quantity };
+    return { modelId: e.modelId, productId: e.glassProductId, quantity: e.quantity };
   }
 
   async completeLot(lotId: string) {
@@ -823,6 +889,7 @@ export class ManufacturingService {
               hardwareEntries: true,
               packingEntries: true,
               edgeBindingEntries: true,
+              glassEntries: true,
             },
           },
         },
@@ -870,6 +937,7 @@ export class ManufacturingService {
       const hardwareEntries: MaterialEntry[] = [];
       const packingEntries: MaterialEntry[] = [];
       const edgeBindingEntries: MaterialEntry[] = [];
+      const glassEntries: MaterialEntry[] = [];
 
       for (const model of lot.models) {
         for (const entry of model.paintEntries) {
@@ -906,6 +974,16 @@ export class ManufacturingService {
             ),
           });
         }
+        for (const entry of model.glassEntries) {
+          glassEntries.push({
+            productId: entry.glassProductId,
+            modelId: model.id,
+            quantity: totalForModelQty(
+              roundDecimal(toNumber(entry.quantity)),
+              model.quantity
+            ),
+          });
+        }
       }
 
       async function writeMaterialConsumptionLogs(
@@ -927,7 +1005,9 @@ export class ManufacturingService {
                 ? await tx.hardwareProduct.findUnique({ where: { id: productId } })
                 : type === "packing"
                   ? await tx.packingProduct.findUnique({ where: { id: productId } })
-                  : await tx.edgeBindingProduct.findUnique({ where: { id: productId } });
+                  : type === "edgebinding"
+                    ? await tx.edgeBindingProduct.findUnique({ where: { id: productId } })
+                    : await tx.glassProduct.findUnique({ where: { id: productId } });
           if (!product) throw new Error("Product not found");
 
           const totalUsed = roundDecimal(
@@ -947,7 +1027,8 @@ export class ManufacturingService {
             if (type === "paint") await tx.paintConsumptionLog.create({ data: logData });
             else if (type === "hardware") await tx.hardwareConsumptionLog.create({ data: logData });
             else if (type === "packing") await tx.packingConsumptionLog.create({ data: logData });
-            else await tx.edgeBindingConsumptionLog.create({ data: logData });
+            else if (type === "edgebinding") await tx.edgeBindingConsumptionLog.create({ data: logData });
+            else await tx.glassConsumptionLog.create({ data: logData });
           }
         }
       }
@@ -956,6 +1037,7 @@ export class ManufacturingService {
       await writeMaterialConsumptionLogs(hardwareEntries, "hardware");
       await writeMaterialConsumptionLogs(packingEntries, "packing");
       await writeMaterialConsumptionLogs(edgeBindingEntries, "edgebinding");
+      await writeMaterialConsumptionLogs(glassEntries, "glass");
 
       await tx.manufacturingLot.update({
         where: { id: lotId },

@@ -26,6 +26,7 @@ export function getModelStatus(model: {
   hardwareEntries?: unknown[];
   packingEntries?: unknown[];
   edgeBindingEntries?: unknown[];
+  glassEntries?: unknown[];
   totalBoardSqft?: number;
 }): ModelStatus {
   const hasBoard =
@@ -34,7 +35,8 @@ export function getModelStatus(model: {
     (model.paintEntries?.length ?? 0) > 0 ||
     (model.hardwareEntries?.length ?? 0) > 0 ||
     (model.packingEntries?.length ?? 0) > 0 ||
-    (model.edgeBindingEntries?.length ?? 0) > 0;
+    (model.edgeBindingEntries?.length ?? 0) > 0 ||
+    (model.glassEntries?.length ?? 0) > 0;
 
   if (hasBoard) return "ready";
   if (hasOther) return "in-progress";
@@ -76,6 +78,11 @@ export function getModelPackingTotal(model: ModelDto): number {
 
 export function getModelEdgeBindingTotal(model: ModelDto): number {
   const perUnit = sumMaterialForModel(model.edgeBindingEntries);
+  return totalForModelQty(perUnit, model.quantity);
+}
+
+export function getModelGlassTotal(model: ModelDto): number {
+  const perUnit = sumMaterialForModel(model.glassEntries);
   return totalForModelQty(perUnit, model.quantity);
 }
 
@@ -154,4 +161,8 @@ export function getTotalPackingUsed(models: ModelDto[]): number {
 
 export function getTotalEdgeBindingUsed(models: ModelDto[]): number {
   return round2(models.reduce((sum, m) => sum + getModelEdgeBindingTotal(m), 0));
+}
+
+export function getTotalGlassUsed(models: ModelDto[]): number {
+  return round2(models.reduce((sum, m) => sum + getModelGlassTotal(m), 0));
 }

@@ -28,6 +28,7 @@ const MATERIALS: { id: CatalogPresetImportKind; label: string }[] = [
   { id: "hardware", label: "Hardware" },
   { id: "packing", label: "Packing" },
   { id: "edgebinding", label: "Edge Binding" },
+  { id: "glass", label: "Glass" },
 ];
 
 interface CatalogMaterialsImportMenuProps {
@@ -36,6 +37,7 @@ interface CatalogMaterialsImportMenuProps {
   hardwareOptions: CatalogImportOption[];
   packingOptions: CatalogImportOption[];
   edgeBindingOptions: CatalogImportOption[];
+  glassOptions: CatalogImportOption[];
   onImportBoards: (rows: CatalogImportedBoard[]) => void;
   onImportQty: (kind: Exclude<CatalogPresetImportKind, "boards">, rows: CatalogImportedQty[]) => void;
 }
@@ -46,6 +48,7 @@ export function CatalogMaterialsImportMenu({
   hardwareOptions,
   packingOptions,
   edgeBindingOptions,
+  glassOptions,
   onImportBoards,
   onImportQty,
 }: CatalogMaterialsImportMenuProps) {
@@ -57,7 +60,8 @@ export function CatalogMaterialsImportMenu({
     if (kind === "paint") return paintOptions;
     if (kind === "hardware") return hardwareOptions;
     if (kind === "packing") return packingOptions;
-    return edgeBindingOptions;
+    if (kind === "edgebinding") return edgeBindingOptions;
+    return glassOptions;
   };
 
   const handleUpload = async (kind: CatalogPresetImportKind, file: File) => {

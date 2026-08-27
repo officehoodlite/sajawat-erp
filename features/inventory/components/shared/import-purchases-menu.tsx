@@ -16,7 +16,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export type PurchaseImportKind = "boards" | "paint" | "hardware" | "packing" | "edgebinding";
+export type PurchaseImportKind = "boards" | "paint" | "hardware" | "packing" | "edgebinding" | "glass";
 
 export type PurchaseImportResult = {
   created: number;

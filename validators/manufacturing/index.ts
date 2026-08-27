@@ -76,10 +76,15 @@ export const createEdgeBindingEntrySchema = createMaterialEntrySchema.extend({
   edgeBindingProductId: z.string().min(1).max(64),
 });
 
+export const createGlassEntrySchema = createMaterialEntrySchema.extend({
+  glassProductId: z.string().min(1).max(64),
+});
+
 export const updatePaintEntrySchema = createPaintEntrySchema;
 export const updateHardwareEntrySchema = createHardwareEntrySchema;
 export const updatePackingEntrySchema = createPackingEntrySchema;
 export const updateEdgeBindingEntrySchema = createEdgeBindingEntrySchema;
+export const updateGlassEntrySchema = createGlassEntrySchema;
 
 const coercedNonNegativeNumber = z.coerce
   .number()

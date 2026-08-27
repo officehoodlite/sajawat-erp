@@ -76,4 +76,5 @@ export const MATERIAL_MODULES: Record<MaterialModuleType, MaterialModuleConfig> 
   hardware: { type: "hardware", label: "Hardware", nameField: "name" },
   packing: { type: "packing", label: "Packing", nameField: "name" },
   edgebinding: { type: "edgebinding", label: "Edge Binding", nameField: "name" },
+  glass: { type: "glass", label: "Glass", nameField: "name" },
 };

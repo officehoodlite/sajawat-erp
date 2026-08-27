@@ -2,11 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
+import { Download } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { PageToolbar } from "@/components/shared/page-toolbar";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddBoardPurchaseDialog } from "@/features/inventory/components/board-module/add-board-purchase-dialog";
 import { ImportPurchasesActions } from "@/features/inventory/components/shared/import-purchases-menu";
+import { downloadCsv } from "@/lib/csv-download";
 import {
   useBoardStock,
   useCreateBoardInventory,
@@ -47,6 +50,13 @@ export function BoardStockTab() {
     await createPurchase.mutateAsync(values);
   };
 
+  const handleExport = () => {
+    downloadCsv("board-stock.csv", [
+      ["Material", "Thickness", "Remaining (SqFt)"],
+      ...(data ?? []).map((row) => [row.materialName, row.thickness, row.remainingSqft]),
+    ]);
+  };
+
   if (isLoading && !data) {
     return <Skeleton className="h-64 w-full rounded-xl" />;
   }
@@ -55,7 +65,13 @@ export function BoardStockTab() {
     <div className="space-y-4">
       <PageToolbar
         actions={
-          <ImportPurchasesActions kind="boards" onAdd={() => setPurchaseOpen(true)} />
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" onClick={handleExport}>
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+            <ImportPurchasesActions kind="boards" onAdd={() => setPurchaseOpen(true)} />
+          </div>
         }
       />
 

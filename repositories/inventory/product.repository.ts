@@ -31,6 +31,10 @@ const productModelInclude = {
     include: { edgeBindingProduct: true },
     orderBy: { createdAt: "asc" as const },
   },
+  glassPresets: {
+    include: { glassProduct: true },
+    orderBy: { createdAt: "asc" as const },
+  },
 };
 
 type ProductModelRow = {
@@ -72,6 +76,12 @@ type ProductModelRow = {
     quantity: unknown;
     edgeBindingProduct: { name: string; brand: string | null };
   }>;
+  glassPresets: Array<{
+    id: string;
+    glassProductId: string;
+    quantity: unknown;
+    glassProduct: { name: string; brand: string | null };
+  }>;
 };
 
 function materialLabel(name: string, brand: string | null) {
@@ -89,6 +99,7 @@ function mapProductModel(row: ProductModelRow): CatalogProductModelDto {
     hardwarePresetCount: row.hardwarePresets.length,
     packingPresetCount: row.packingPresets.length,
     edgeBindingPresetCount: row.edgeBindingPresets.length,
+    glassPresetCount: row.glassPresets.length,
     boardPresets: row.boardPresets.map((p) => ({
       id: p.id,
       boardThicknessId: p.boardThicknessId,
@@ -119,6 +130,12 @@ function mapProductModel(row: ProductModelRow): CatalogProductModelDto {
       id: p.id,
       productId: p.edgeBindingProductId,
       label: materialLabel(p.edgeBindingProduct.name, p.edgeBindingProduct.brand),
+      quantity: toNumber(p.quantity),
+    })),
+    glassPresets: row.glassPresets.map((p) => ({
+      id: p.id,
+      productId: p.glassProductId,
+      label: materialLabel(p.glassProduct.name, p.glassProduct.brand),
       quantity: toNumber(p.quantity),
     })),
     createdAt: row.createdAt.toISOString(),
@@ -153,6 +170,7 @@ async function replaceModelPresets(
     await tx.productModelHardwarePreset.deleteMany({ where: { productModelId } });
     await tx.productModelPackingPreset.deleteMany({ where: { productModelId } });
     await tx.productModelEdgeBindingPreset.deleteMany({ where: { productModelId } });
+    await tx.productModelGlassPreset.deleteMany({ where: { productModelId } });
 
     if (data.boardPresets.length > 0) {
       await tx.productModelBoardPreset.createMany({
@@ -197,6 +215,15 @@ async function replaceModelPresets(
         data: data.edgeBindingPresets.map((preset) => ({
           productModelId,
           edgeBindingProductId: preset.productId,
+          quantity: preset.quantity,
+        })),
+      });
+    }
+    if (data.glassPresets.length > 0) {
+      await tx.productModelGlassPreset.createMany({
+        data: data.glassPresets.map((preset) => ({
+          productModelId,
+          glassProductId: preset.productId,
           quantity: preset.quantity,
         })),
       });
@@ -269,6 +296,7 @@ export class ProductRepository {
                 hardwarePresets: true,
                 packingPresets: true,
                 edgeBindingPresets: true,
+                glassPresets: true,
               },
             },
           },
@@ -291,11 +319,13 @@ export class ProductRepository {
         hardwarePresetCount: model._count.hardwarePresets,
         packingPresetCount: model._count.packingPresets,
         edgeBindingPresetCount: model._count.edgeBindingPresets,
+        glassPresetCount: model._count.glassPresets,
         boardPresets: [],
         paintPresets: [],
         hardwarePresets: [],
         packingPresets: [],
         edgeBindingPresets: [],
+        glassPresets: [],
         createdAt: model.createdAt.toISOString(),
         updatedAt: model.updatedAt.toISOString(),
       })),

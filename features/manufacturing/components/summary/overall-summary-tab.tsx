@@ -6,6 +6,10 @@ import {
   BoardByModelTable,
   MaterialByModelTable,
 } from "@/features/manufacturing/components/summary/material-by-model-table";
+import { useCurrentUser } from "@/features/users/hooks/use-users";
+import { downloadCsv } from "@/lib/csv-download";
+import { roundDecimal } from "@/lib/decimal";
+import { computeWorkerLotTotals } from "@/lib/worker-labor";
 import type { LotSummaryDto } from "@/types/dto";
 import { formatNumber } from "@/utils/format";
 
@@ -13,11 +17,7 @@ interface OverallSummaryTabProps {
   lot: LotSummaryDto;
 }
 
-function csvCell(value: string | number) {
-  return `"${String(value).replaceAll('"', '""')}"`;
-}
-
-function downloadOverallSummary(lot: LotSummaryDto) {
+function downloadOverallSummary(lot: LotSummaryDto, includeWorkerPrices: boolean) {
   const modelHeaders = lot.models.map((model) => model.modelName);
   const rows: Array<Array<string | number>> = [
     ["Lot", lot.lotNumber],
@@ -61,26 +61,56 @@ function downloadOverallSummary(lot: LotSummaryDto) {
   appendMaterials("Hardware", lot.hardwareByModel);
   appendMaterials("Packing", lot.packingByModel);
   appendMaterials("Edge Binding", lot.edgeBindingByModel);
+  appendMaterials("Glass", lot.glassByModel);
 
-  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
-  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `lot-${lot.lotNumber}-overall-summary.csv`
-    .replaceAll(/[^a-zA-Z0-9._-]+/g, "-")
-    .replaceAll(/-+/g, "-");
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  rows.push([]);
+  rows.push(["Worker Summary"]);
+  const totals = computeWorkerLotTotals(lot.workerEntries, lot.workerRates);
+  if (includeWorkerPrices) {
+    rows.push(["Labor Type", "Total Count", "Rate", "Total"]);
+    for (const row of totals) {
+      rows.push([row.category, row.count, row.rate, row.total]);
+    }
+    const grandTotal = roundDecimal(totals.reduce((sum, row) => sum + row.total, 0));
+    rows.push(["Grand Total", "", "", grandTotal]);
+  } else {
+    rows.push(["Labor Type", "Total Count"]);
+    for (const row of totals) {
+      rows.push([row.category, row.count]);
+    }
+  }
+
+  rows.push([]);
+  rows.push(["Worker Entries"]);
+  rows.push(["Type", "Date", "Workers", "Mistri", "Half mistri", "Helper", "Hours", "Pack qty"]);
+  for (const entry of lot.workerEntries) {
+    rows.push([
+      entry.type,
+      entry.workDate.slice(0, 10),
+      entry.workerNames.join(", "),
+      entry.mistri,
+      entry.halfMistri,
+      entry.helper,
+      entry.hours,
+      entry.packQty ?? "",
+    ]);
+  }
+
+  downloadCsv(`lot-${lot.lotNumber}-overall-summary.csv`, rows);
 }
 
 export function OverallSummaryTab({ lot }: OverallSummaryTabProps) {
+  const { data: me } = useCurrentUser();
+  const includeWorkerPrices = me?.workerPrices === true;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <Button type="button" variant="outline" onClick={() => downloadOverallSummary(lot)}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => downloadOverallSummary(lot, includeWorkerPrices)}
+        >
           <Download className="h-4 w-4" />
           Export overall summary
         </Button>
@@ -111,6 +141,13 @@ export function OverallSummaryTab({ lot }: OverallSummaryTabProps) {
         title="Edge Binding"
         description="Edge binding usage by model (scaled by model quantity)."
         rows={lot.edgeBindingByModel}
+        models={lot.models}
+        formatValue={(value, unit) => `${formatNumber(value)} ${unit}`}
+      />
+      <MaterialByModelTable
+        title="Glass"
+        description="Glass usage by model (scaled by model quantity)."
+        rows={lot.glassByModel}
         models={lot.models}
         formatValue={(value, unit) => `${formatNumber(value)} ${unit}`}
       />

@@ -192,6 +192,35 @@ function applyDoneConsumption(
   return { ...next, paintingReadyQty, paintingStatusQty };
 }
 
+function applyPaintStatusToDone(
+  existing: {
+    paintingReadyQty: number;
+    paintingStatusQty: number;
+    completedReadyQty: number;
+  },
+  next: {
+    paintingReadyQty: number;
+    paintingStatusQty: number;
+    completedReadyQty: number;
+    completedOutQty: number;
+    carpentryQty: number;
+  },
+  data: { paintingStatusQty?: number; completedReadyQty?: number }
+) {
+  if (data.completedReadyQty !== undefined) return next;
+  if (data.paintingStatusQty === undefined) return next;
+  if (data.paintingStatusQty === existing.paintingStatusQty) return next;
+  const transfer = next.paintingStatusQty;
+  if (transfer <= 0) return next;
+  if (transfer > next.paintingReadyQty) return next;
+  return {
+    ...next,
+    paintingReadyQty: next.paintingReadyQty - transfer,
+    paintingStatusQty: 0,
+    completedReadyQty: next.completedReadyQty + transfer,
+  };
+}
+
 async function assertPartCapacity(
   db: DbClient,
   modelId: string,
@@ -356,13 +385,21 @@ export class ProductionRepository {
       });
       if (!model) throw new Error("Model not found in this lot");
 
-      const progress = {
-        carpentryQty: data.carpentryQty,
-        paintingReadyQty: data.paintingReadyQty,
-        paintingStatusQty: data.paintingStatusQty,
-        completedReadyQty: data.completedReadyQty,
-        completedOutQty: data.completedOutQty,
-      };
+      const progress = applyPaintStatusToDone(
+        {
+          paintingReadyQty: data.paintingReadyQty,
+          paintingStatusQty: 0,
+          completedReadyQty: data.completedReadyQty,
+        },
+        {
+          carpentryQty: data.carpentryQty,
+          paintingReadyQty: data.paintingReadyQty,
+          paintingStatusQty: data.paintingStatusQty,
+          completedReadyQty: data.completedReadyQty,
+          completedOutQty: data.completedOutQty,
+        },
+        { paintingStatusQty: data.paintingStatusQty }
+      );
       assertProgressOrder(progress);
 
       const parts = await assertPartCapacity(
@@ -402,15 +439,19 @@ export class ProductionRepository {
       if (!existing) throw new Error("Production entry not found");
 
       const nextParts = data.parts ?? existing.parts;
-      const nextProgress = applyDoneConsumption(
+      const nextProgress = applyPaintStatusToDone(
         existing,
-        {
-          carpentryQty: data.carpentryQty ?? existing.carpentryQty,
-          paintingReadyQty: data.paintingReadyQty ?? existing.paintingReadyQty,
-          paintingStatusQty: data.paintingStatusQty ?? existing.paintingStatusQty,
-          completedReadyQty: data.completedReadyQty ?? existing.completedReadyQty,
-          completedOutQty: data.completedOutQty ?? existing.completedOutQty,
-        },
+        applyDoneConsumption(
+          existing,
+          {
+            carpentryQty: data.carpentryQty ?? existing.carpentryQty,
+            paintingReadyQty: data.paintingReadyQty ?? existing.paintingReadyQty,
+            paintingStatusQty: data.paintingStatusQty ?? existing.paintingStatusQty,
+            completedReadyQty: data.completedReadyQty ?? existing.completedReadyQty,
+            completedOutQty: data.completedOutQty ?? existing.completedOutQty,
+          },
+          data
+        ),
         data
       );
 

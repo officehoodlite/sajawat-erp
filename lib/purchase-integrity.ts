@@ -4,7 +4,7 @@ import { toNumber } from "@/lib/mappers";
 import { formatNumber } from "@/utils/format";
 
 type Tx = Prisma.TransactionClient;
-type MaterialType = "paint" | "hardware" | "packing" | "edgebinding";
+type MaterialType = "paint" | "hardware" | "packing" | "edgebinding" | "glass";
 
 export function computeConsumed(purchaseQty: number, remainingQty: number): number {
   return roundDecimal(Math.max(0, purchaseQty - remainingQty));
@@ -49,7 +49,10 @@ async function findMaterialPurchasesWithRemaining(tx: Tx, type: MaterialType, pr
   if (type === "packing") {
     return tx.packingPurchase.findMany({ where, orderBy });
   }
-  return tx.edgeBindingPurchase.findMany({ where, orderBy });
+  if (type === "edgebinding") {
+    return tx.edgeBindingPurchase.findMany({ where, orderBy });
+  }
+  return tx.glassPurchase.findMany({ where, orderBy });
 }
 
 async function findMaterialPurchasesForRestore(tx: Tx, type: MaterialType, productId: string) {
@@ -73,7 +76,13 @@ async function findMaterialPurchasesForRestore(tx: Tx, type: MaterialType, produ
       orderBy,
     });
   }
-  return tx.edgeBindingPurchase.findMany({
+  if (type === "edgebinding") {
+    return tx.edgeBindingPurchase.findMany({
+      where: { productId },
+      orderBy,
+    });
+  }
+  return tx.glassPurchase.findMany({
     where: { productId },
     orderBy,
   });
@@ -104,8 +113,13 @@ async function updateMaterialPurchaseRemaining(
         where: { id: purchaseId },
         data: { remainingQuantity: { decrement: amount } },
       });
-    } else {
+    } else if (type === "edgebinding") {
       await tx.edgeBindingPurchase.update({
+        where: { id: purchaseId },
+        data: { remainingQuantity: { decrement: amount } },
+      });
+    } else {
+      await tx.glassPurchase.update({
         where: { id: purchaseId },
         data: { remainingQuantity: { decrement: amount } },
       });
@@ -128,8 +142,13 @@ async function updateMaterialPurchaseRemaining(
       where: { id: purchaseId },
       data: { remainingQuantity: { increment: amount } },
     });
-  } else {
+  } else if (type === "edgebinding") {
     await tx.edgeBindingPurchase.update({
+      where: { id: purchaseId },
+      data: { remainingQuantity: { increment: amount } },
+    });
+  } else {
+    await tx.glassPurchase.update({
       where: { id: purchaseId },
       data: { remainingQuantity: { increment: amount } },
     });

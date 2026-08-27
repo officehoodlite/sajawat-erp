@@ -57,13 +57,14 @@ type QtyRow = {
 
 type Option = { id: string; label: string };
 
-type DialogKind = "boards" | "paint" | "hardware" | "packing" | "edgebinding";
+type DialogKind = "boards" | "paint" | "hardware" | "packing" | "edgebinding" | "glass";
 
 const QTY_TITLES: Record<Exclude<DialogKind, "boards">, string> = {
   paint: "Paint",
   hardware: "Hardware",
   packing: "Packing",
   edgebinding: "Edge Binding",
+  glass: "Glass",
 };
 
 function newKey() {
@@ -92,6 +93,7 @@ export function ProductModelMaterialsClient({
   const [hardwareRows, setHardwareRows] = useState<QtyRow[]>([]);
   const [packingRows, setPackingRows] = useState<QtyRow[]>([]);
   const [edgeBindingRows, setEdgeBindingRows] = useState<QtyRow[]>([]);
+  const [glassRows, setGlassRows] = useState<QtyRow[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   const [dialogKind, setDialogKind] = useState<DialogKind | null>(null);
@@ -114,6 +116,10 @@ export function ProductModelMaterialsClient({
   );
   const { data: edgeBindingOptions = [], isLoading: edgeBindingLoading } =
     useCatalogMaterialOptions("edgebinding", true);
+  const { data: glassOptions = [], isLoading: glassLoading } = useCatalogMaterialOptions(
+    "glass",
+    true
+  );
 
   useEffect(() => {
     if (!model || hydrated) return;
@@ -163,6 +169,14 @@ export function ProductModelMaterialsClient({
         quantity: p.quantity,
       }))
     );
+    setGlassRows(
+      model.glassPresets.map((p) => ({
+        key: p.id,
+        productId: p.productId,
+        label: p.label,
+        quantity: p.quantity,
+      }))
+    );
     setHydrated(true);
   }, [model, hydrated]);
 
@@ -201,6 +215,10 @@ export function ProductModelMaterialsClient({
           quantity: row.quantity,
         })),
         edgeBindingPresets: edgeBindingRows.map((row) => ({
+          productId: row.productId,
+          quantity: row.quantity,
+        })),
+        glassPresets: glassRows.map((row) => ({
           productId: row.productId,
           quantity: row.quantity,
         })),
@@ -373,6 +391,7 @@ export function ProductModelMaterialsClient({
               hardwareOptions={hardwareOptions}
               packingOptions={packingOptions}
               edgeBindingOptions={edgeBindingOptions}
+              glassOptions={glassOptions}
               onImportBoards={(rows) =>
                 setBoardRows((current) => [
                   ...current,
@@ -385,6 +404,7 @@ export function ProductModelMaterialsClient({
                 if (kind === "hardware") setHardwareRows((current) => [...current, ...next]);
                 if (kind === "packing") setPackingRows((current) => [...current, ...next]);
                 if (kind === "edgebinding") setEdgeBindingRows((current) => [...current, ...next]);
+                if (kind === "glass") setGlassRows((current) => [...current, ...next]);
               }}
             />
           }
@@ -468,6 +488,7 @@ export function ProductModelMaterialsClient({
               "edgebinding",
               edgeBindingLoading
             )}
+            {qtyCard("Glass", glassRows, setGlassRows, "glass", glassLoading)}
           </div>
         </ErpPageSection>
 
@@ -530,7 +551,9 @@ export function ProductModelMaterialsClient({
                 ? hardwareOptions
                 : dialogKind === "packing"
                   ? packingOptions
-                  : edgeBindingOptions
+                  : dialogKind === "edgebinding"
+                    ? edgeBindingOptions
+                    : glassOptions
           }
           existing={
             editingQtyKey
@@ -540,7 +563,9 @@ export function ProductModelMaterialsClient({
                     ? hardwareRows
                     : dialogKind === "packing"
                       ? packingRows
-                      : edgeBindingRows
+                      : dialogKind === "edgebinding"
+                        ? edgeBindingRows
+                        : glassRows
                 ).find((r) => r.key === editingQtyKey) ?? null
               : null
           }
@@ -565,6 +590,7 @@ export function ProductModelMaterialsClient({
             if (dialogKind === "hardware") setHardwareRows(apply(hardwareRows));
             if (dialogKind === "packing") setPackingRows(apply(packingRows));
             if (dialogKind === "edgebinding") setEdgeBindingRows(apply(edgeBindingRows));
+            if (dialogKind === "glass") setGlassRows(apply(glassRows));
             setDialogKind(null);
             setEditingQtyKey(null);
           }}
