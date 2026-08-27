@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { CatalogMaterialsImportMenu } from "@/features/catalog/components/catalog-materials-import-menu";
 import { ErpPage, ErpPageSection } from "@/components/shared/erp-page";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -56,7 +57,14 @@ type QtyRow = {
 
 type Option = { id: string; label: string };
 
-type DialogKind = "boards" | "paint" | "hardware" | "packing";
+type DialogKind = "boards" | "paint" | "hardware" | "packing" | "edgebinding";
+
+const QTY_TITLES: Record<Exclude<DialogKind, "boards">, string> = {
+  paint: "Paint",
+  hardware: "Hardware",
+  packing: "Packing",
+  edgebinding: "Edge Binding",
+};
 
 function newKey() {
   return crypto.randomUUID();
@@ -83,6 +91,7 @@ export function ProductModelMaterialsClient({
   const [paintRows, setPaintRows] = useState<QtyRow[]>([]);
   const [hardwareRows, setHardwareRows] = useState<QtyRow[]>([]);
   const [packingRows, setPackingRows] = useState<QtyRow[]>([]);
+  const [edgeBindingRows, setEdgeBindingRows] = useState<QtyRow[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   const [dialogKind, setDialogKind] = useState<DialogKind | null>(null);
@@ -103,6 +112,8 @@ export function ProductModelMaterialsClient({
     "packing",
     true
   );
+  const { data: edgeBindingOptions = [], isLoading: edgeBindingLoading } =
+    useCatalogMaterialOptions("edgebinding", true);
 
   useEffect(() => {
     if (!model || hydrated) return;
@@ -144,6 +155,14 @@ export function ProductModelMaterialsClient({
         quantity: p.quantity,
       }))
     );
+    setEdgeBindingRows(
+      model.edgeBindingPresets.map((p) => ({
+        key: p.id,
+        productId: p.productId,
+        label: p.label,
+        quantity: p.quantity,
+      }))
+    );
     setHydrated(true);
   }, [model, hydrated]);
 
@@ -178,6 +197,10 @@ export function ProductModelMaterialsClient({
           quantity: row.quantity,
         })),
         packingPresets: packingRows.map((row) => ({
+          productId: row.productId,
+          quantity: row.quantity,
+        })),
+        edgeBindingPresets: edgeBindingRows.map((row) => ({
           productId: row.productId,
           quantity: row.quantity,
         })),
@@ -343,6 +366,28 @@ export function ProductModelMaterialsClient({
         <ErpPageSection
           title="Default materials"
           description="Add the same material more than once with different sizes or quantities. Values copy into a lot when this model is added."
+          actions={
+            <CatalogMaterialsImportMenu
+              thicknessOptions={thicknessOptions}
+              paintOptions={paintOptions}
+              hardwareOptions={hardwareOptions}
+              packingOptions={packingOptions}
+              edgeBindingOptions={edgeBindingOptions}
+              onImportBoards={(rows) =>
+                setBoardRows((current) => [
+                  ...current,
+                  ...rows.map((row) => ({ ...row, key: newKey() })),
+                ])
+              }
+              onImportQty={(kind, rows) => {
+                const next = rows.map((row) => ({ ...row, key: newKey() }));
+                if (kind === "paint") setPaintRows((current) => [...current, ...next]);
+                if (kind === "hardware") setHardwareRows((current) => [...current, ...next]);
+                if (kind === "packing") setPackingRows((current) => [...current, ...next]);
+                if (kind === "edgebinding") setEdgeBindingRows((current) => [...current, ...next]);
+              }}
+            />
+          }
         >
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
@@ -416,6 +461,13 @@ export function ProductModelMaterialsClient({
             {qtyCard("Paint", paintRows, setPaintRows, "paint", paintLoading)}
             {qtyCard("Hardware", hardwareRows, setHardwareRows, "hardware", hardwareLoading)}
             {qtyCard("Packing", packingRows, setPackingRows, "packing", packingLoading)}
+            {qtyCard(
+              "Edge Binding",
+              edgeBindingRows,
+              setEdgeBindingRows,
+              "edgebinding",
+              edgeBindingLoading
+            )}
           </div>
         </ErpPageSection>
 
@@ -470,13 +522,15 @@ export function ProductModelMaterialsClient({
       {dialogKind && dialogKind !== "boards" ? (
         <QtyPresetDialog
           open
-          title={dialogKind.charAt(0).toUpperCase() + dialogKind.slice(1)}
+          title={QTY_TITLES[dialogKind]}
           options={
             dialogKind === "paint"
               ? paintOptions
               : dialogKind === "hardware"
                 ? hardwareOptions
-                : packingOptions
+                : dialogKind === "packing"
+                  ? packingOptions
+                  : edgeBindingOptions
           }
           existing={
             editingQtyKey
@@ -484,7 +538,9 @@ export function ProductModelMaterialsClient({
                   ? paintRows
                   : dialogKind === "hardware"
                     ? hardwareRows
-                    : packingRows
+                    : dialogKind === "packing"
+                      ? packingRows
+                      : edgeBindingRows
                 ).find((r) => r.key === editingQtyKey) ?? null
               : null
           }
@@ -508,6 +564,7 @@ export function ProductModelMaterialsClient({
             if (dialogKind === "paint") setPaintRows(apply(paintRows));
             if (dialogKind === "hardware") setHardwareRows(apply(hardwareRows));
             if (dialogKind === "packing") setPackingRows(apply(packingRows));
+            if (dialogKind === "edgebinding") setEdgeBindingRows(apply(edgeBindingRows));
             setDialogKind(null);
             setEditingQtyKey(null);
           }}

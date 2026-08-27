@@ -1,11 +1,11 @@
 "use client";
 
-import ExcelJS from "exceljs";
 import {
   computeLaborPerQty,
   computeWorkerLotTotals,
 } from "@/lib/worker-labor";
 import type { LotSummaryDto } from "@/types/dto";
+import type ExcelJS from "exceljs";
 
 function addSheet(
   workbook: ExcelJS.Workbook,
@@ -39,6 +39,7 @@ function materialRows(
 }
 
 export async function downloadLotExcel(lot: LotSummaryDto, includeWorkerPrices: boolean) {
+  const ExcelJS = (await import("exceljs")).default;
   const workbook = new ExcelJS.Workbook();
   const modelHeaders = lot.models.map((model) => `${model.modelName} (qty ${model.quantity})`);
 
@@ -85,6 +86,12 @@ export async function downloadLotExcel(lot: LotSummaryDto, includeWorkerPrices: 
     "Packing",
     ["Material", "Unit", "Quantity"],
     lot.packingConsumption.map((row) => [row.name, row.unit, row.quantity])
+  );
+  addSheet(
+    workbook,
+    "Edge Binding",
+    ["Material", "Unit", "Quantity"],
+    lot.edgeBindingConsumption.map((row) => [row.name, row.unit, row.quantity])
   );
 
   addSheet(
@@ -164,6 +171,7 @@ export async function downloadLotExcel(lot: LotSummaryDto, includeWorkerPrices: 
       ...materialRows(lot, "Paint", lot.paintByModel),
       ...materialRows(lot, "Hardware", lot.hardwareByModel),
       ...materialRows(lot, "Packing", lot.packingByModel),
+      ...materialRows(lot, "Edge Binding", lot.edgeBindingByModel),
     ]
   );
 

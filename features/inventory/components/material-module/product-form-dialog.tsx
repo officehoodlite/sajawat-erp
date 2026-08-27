@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UNITS, UNIT_LABELS, type MaterialModuleType } from "@/types/enums";
+import { UNITS, UNIT_LABELS, MATERIAL_MODULE_LABELS, type MaterialModuleType } from "@/types/enums";
 import {
   createMaterialProductSchema,
   type CreateMaterialProductInput,
@@ -61,7 +61,7 @@ export function ProductFormDialog({
     }
   }, [open, product, form]);
 
-  const label = type.charAt(0).toUpperCase() + type.slice(1);
+  const label = MATERIAL_MODULE_LABELS[type];
 
   const handleSubmit = form.handleSubmit(async (data) => {
     onOpenChange(false);

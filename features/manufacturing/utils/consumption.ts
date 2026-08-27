@@ -25,6 +25,7 @@ export function getModelStatus(model: {
   paintEntries?: unknown[];
   hardwareEntries?: unknown[];
   packingEntries?: unknown[];
+  edgeBindingEntries?: unknown[];
   totalBoardSqft?: number;
 }): ModelStatus {
   const hasBoard =
@@ -32,7 +33,8 @@ export function getModelStatus(model: {
   const hasOther =
     (model.paintEntries?.length ?? 0) > 0 ||
     (model.hardwareEntries?.length ?? 0) > 0 ||
-    (model.packingEntries?.length ?? 0) > 0;
+    (model.packingEntries?.length ?? 0) > 0 ||
+    (model.edgeBindingEntries?.length ?? 0) > 0;
 
   if (hasBoard) return "ready";
   if (hasOther) return "in-progress";
@@ -70,6 +72,11 @@ export function getModelHardwareTotal(model: ModelDto): number {
 
 export function getModelPackingTotal(model: ModelDto): number {
   return sumMaterialForModel(model.packingEntries);
+}
+
+export function getModelEdgeBindingTotal(model: ModelDto): number {
+  const perUnit = sumMaterialForModel(model.edgeBindingEntries);
+  return totalForModelQty(perUnit, model.quantity);
 }
 
 export function groupPaintConsumption(models: ModelDto[]): MaterialConsumptionRow[] {
@@ -143,4 +150,8 @@ export function getTotalHardwareUsed(models: ModelDto[]): number {
 
 export function getTotalPackingUsed(models: ModelDto[]): number {
   return round2(models.reduce((sum, m) => sum + getModelPackingTotal(m), 0));
+}
+
+export function getTotalEdgeBindingUsed(models: ModelDto[]): number {
+  return round2(models.reduce((sum, m) => sum + getModelEdgeBindingTotal(m), 0));
 }

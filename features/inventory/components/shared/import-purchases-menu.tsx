@@ -16,7 +16,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export type PurchaseImportKind = "boards" | "paint" | "hardware" | "packing";
+export type PurchaseImportKind = "boards" | "paint" | "hardware" | "packing" | "edgebinding";
 
 export type PurchaseImportResult = {
   created: number;
@@ -93,7 +93,7 @@ export function ImportPurchasesMenu({ kind, onImported }: ImportPurchasesMenuPro
           Import
           <ChevronDown className="size-4" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-max min-w-56">
           <DropdownMenuItem onClick={() => void downloadPurchaseTemplate(kind)}>
             Download template
           </DropdownMenuItem>

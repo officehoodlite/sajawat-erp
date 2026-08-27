@@ -31,11 +31,13 @@ export const HARDWARE_PURCHASE_TEMPLATE_HEADERS = [
   "remarks (optional)",
 ] as const;
 
-export async function downloadPurchaseTemplate(kind: "boards" | "paint" | "hardware" | "packing") {
+export async function downloadPurchaseTemplate(
+  kind: "boards" | "paint" | "hardware" | "packing" | "edgebinding"
+) {
   const headers =
     kind === "boards"
       ? [...BOARD_PURCHASE_TEMPLATE_HEADERS]
-      : kind === "hardware"
+      : kind === "hardware" || kind === "edgebinding"
         ? [...HARDWARE_PURCHASE_TEMPLATE_HEADERS]
         : [...PAINT_PACKING_PURCHASE_TEMPLATE_HEADERS];
 

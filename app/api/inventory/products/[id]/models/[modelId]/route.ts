@@ -1,5 +1,5 @@
 import { caughtErrorResponse, errorResponse, successResponse } from "@/lib/api-response";
-import { DEFAULT_BODY_LIMIT, parseJsonBody } from "@/lib/request-body";
+import { DEFAULT_BODY_LIMIT, LARGE_BODY_LIMIT, parseJsonBody } from "@/lib/request-body";
 import { requireSession } from "@/lib/require-session";
 import { inventoryService } from "@/services/inventory/inventory.service";
 import { updateCatalogProductModelSchema } from "@/validators/inventory";
@@ -13,7 +13,7 @@ export async function PATCH(
     if (!session.ok) return session.response;
 
     const { id, modelId } = await params;
-    const parsedBody = await parseJsonBody(request, DEFAULT_BODY_LIMIT);
+    const parsedBody = await parseJsonBody(request, LARGE_BODY_LIMIT);
     if (!parsedBody.ok) return parsedBody.response;
     const body = parsedBody.data;
     const parsed = updateCatalogProductModelSchema.safeParse(body);

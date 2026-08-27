@@ -40,6 +40,7 @@ const modelInclude = {
   paintEntries: { include: { paintProduct: true } },
   hardwareEntries: { include: { hardwareProduct: true } },
   packingEntries: { include: { packingProduct: true } },
+  edgeBindingEntries: { include: { edgeBindingProduct: true } },
   boardPresets: {
     include: { boardThickness: { include: { board: true } } },
     orderBy: { createdAt: "asc" as const },
@@ -54,6 +55,10 @@ const modelInclude = {
   },
   packingPresets: {
     include: { packingProduct: true },
+    orderBy: { createdAt: "asc" as const },
+  },
+  edgeBindingPresets: {
+    include: { edgeBindingProduct: true },
     orderBy: { createdAt: "asc" as const },
   },
   lot: true,
@@ -125,6 +130,13 @@ function mapModel(row: {
     quantity: unknown;
     packingProduct: { name: string; unit: Unit };
   }>;
+  edgeBindingEntries: Array<{
+    id: string;
+    modelId: string;
+    edgeBindingProductId: string;
+    quantity: unknown;
+    edgeBindingProduct: { name: string; unit: Unit };
+  }>;
   boardPresets: Array<{
     boardThicknessId: string;
     length: unknown;
@@ -146,6 +158,11 @@ function mapModel(row: {
     packingProductId: string;
     quantity: unknown;
     packingProduct: { name: string; brand: string | null };
+  }>;
+  edgeBindingPresets: Array<{
+    edgeBindingProductId: string;
+    quantity: unknown;
+    edgeBindingProduct: { name: string; brand: string | null };
   }>;
 }): ModelDto {
   return {
@@ -186,6 +203,14 @@ function mapModel(row: {
       quantity: toNumber(e.quantity),
       unit: e.packingProduct.unit,
     })),
+    edgeBindingEntries: row.edgeBindingEntries.map((e) => ({
+      id: e.id,
+      modelId: e.modelId,
+      edgeBindingProductId: e.edgeBindingProductId,
+      edgeBindingName: e.edgeBindingProduct.name,
+      quantity: toNumber(e.quantity),
+      unit: e.edgeBindingProduct.unit,
+    })),
     boardPresets: row.boardPresets.map((p) => ({
       boardThicknessId: p.boardThicknessId,
       materialName: p.boardThickness.board.materialName,
@@ -208,6 +233,11 @@ function mapModel(row: {
     packingPresets: row.packingPresets.map((p) => ({
       productId: p.packingProductId,
       label: materialLabel(p.packingProduct.name, p.packingProduct.brand),
+      quantity: toNumber(p.quantity),
+    })),
+    edgeBindingPresets: row.edgeBindingPresets.map((p) => ({
+      productId: p.edgeBindingProductId,
+      label: materialLabel(p.edgeBindingProduct.name, p.edgeBindingProduct.brand),
       quantity: toNumber(p.quantity),
     })),
   };
@@ -325,6 +355,10 @@ export function mapLotSummaryFromQuery(lot: {
       quantity: unknown;
       packingProduct: { name: string; unit: Unit };
     }>;
+    edgeBindingEntries: Array<{
+      quantity: unknown;
+      edgeBindingProduct: { name: string; unit: Unit };
+    }>;
   }>;
 }): LotSummaryDto {
   const models: ModelSummaryDto[] = lot.models.map((model) => ({
@@ -417,6 +451,13 @@ export function mapLotSummaryFromQuery(lot: {
       unit: e.packingProduct.unit,
     }))
   );
+  const edgeBindingEntries = lot.models.flatMap((m) =>
+    m.edgeBindingEntries.map((e) => ({
+      name: e.edgeBindingProduct.name,
+      quantity: totalForModelQty(toNumber(e.quantity), m.quantity),
+      unit: e.edgeBindingProduct.unit,
+    }))
+  );
 
   const paintByModel = buildMaterialByModel(
     lot.models.flatMap((m) =>
@@ -448,6 +489,16 @@ export function mapLotSummaryFromQuery(lot: {
       }))
     )
   );
+  const edgeBindingByModel = buildMaterialByModel(
+    lot.models.flatMap((m) =>
+      m.edgeBindingEntries.map((e) => ({
+        modelId: m.id,
+        name: e.edgeBindingProduct.name,
+        quantity: totalForModelQty(toNumber(e.quantity), m.quantity),
+        unit: e.edgeBindingProduct.unit,
+      }))
+    )
+  );
 
   const workerRates = mapWorkerRates(lot.workerRates);
   const workerEntries = (lot.workerEntries ?? []).map(mapWorkerEntry);
@@ -472,9 +523,11 @@ export function mapLotSummaryFromQuery(lot: {
     paintConsumption: groupMaterialConsumption(paintEntries),
     hardwareConsumption: groupMaterialConsumption(hardwareEntries),
     packingConsumption: groupMaterialConsumption(packingEntries),
+    edgeBindingConsumption: groupMaterialConsumption(edgeBindingEntries),
     paintByModel,
     hardwareByModel,
     packingByModel,
+    edgeBindingByModel,
     workerRates,
     workerEntries,
     workerSummaries,
@@ -535,6 +588,12 @@ const summaryInclude = {
         select: {
           quantity: true,
           packingProduct: { select: { name: true, unit: true } },
+        },
+      },
+      edgeBindingEntries: {
+        select: {
+          quantity: true,
+          edgeBindingProduct: { select: { name: true, unit: true } },
         },
       },
     },

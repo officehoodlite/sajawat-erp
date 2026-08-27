@@ -49,10 +49,11 @@ export const UNIT_LABELS: Record<Unit, string> = {
   SHEET: "Sheet",
 };
 
-export type MaterialModuleType = "paint" | "hardware" | "packing";
+export type MaterialModuleType = "paint" | "hardware" | "packing" | "edgebinding";
 
 export const MATERIAL_MODULE_LABELS: Record<MaterialModuleType, string> = {
   paint: "Paint",
   hardware: "Hardware",
   packing: "Packing",
+  edgebinding: "Edge Binding",
 };

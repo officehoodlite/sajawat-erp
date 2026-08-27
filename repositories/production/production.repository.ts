@@ -106,22 +106,12 @@ function isActiveEntry(row: { carpentryQty: number; completedOutQty: number }) {
   return row.completedOutQty < row.carpentryQty;
 }
 
-async function remainingCapacityByPart(
-  db: DbClient,
-  modelId: string,
+function remainingFromEntries(
   modelQuantity: number,
   partCount: number,
-  excludeEntryId?: string
+  entries: Array<{ parts: string[]; carpentryQty: number }>
 ) {
   const labels = partLabels(partCount);
-  const entries = await db.productionEntry.findMany({
-    where: {
-      manufacturingModelId: modelId,
-      ...(excludeEntryId ? { id: { not: excludeEntryId } } : {}),
-    },
-    select: { parts: true, carpentryQty: true },
-  });
-
   const usedByPart = new Map<string, number>();
   for (const label of labels) usedByPart.set(label, 0);
 
@@ -136,6 +126,24 @@ async function remainingCapacityByPart(
     part,
     remaining: Math.max(0, modelQuantity - (usedByPart.get(part) ?? 0)),
   }));
+}
+
+async function remainingCapacityByPart(
+  db: DbClient,
+  modelId: string,
+  modelQuantity: number,
+  partCount: number,
+  excludeEntryId?: string
+) {
+  const entries = await db.productionEntry.findMany({
+    where: {
+      manufacturingModelId: modelId,
+      ...(excludeEntryId ? { id: { not: excludeEntryId } } : {}),
+    },
+    select: { parts: true, carpentryQty: true },
+  });
+
+  return remainingFromEntries(modelQuantity, partCount, entries);
 }
 
 function assertProgressOrder(values: {
@@ -269,19 +277,32 @@ export class ProductionRepository {
       orderBy: { createdAt: "asc" },
     });
 
-    const result: ProductionLotModelDto[] = [];
-    for (const model of models) {
-      const byPart = await remainingCapacityByPart(
-        prisma,
-        model.id,
+    const entries =
+      models.length === 0
+        ? []
+        : await prisma.productionEntry.findMany({
+            where: { manufacturingModelId: { in: models.map((model) => model.id) } },
+            select: { manufacturingModelId: true, parts: true, carpentryQty: true },
+          });
+
+    const entriesByModel = new Map<string, Array<{ parts: string[]; carpentryQty: number }>>();
+    for (const entry of entries) {
+      const list = entriesByModel.get(entry.manufacturingModelId) ?? [];
+      list.push({ parts: entry.parts, carpentryQty: entry.carpentryQty });
+      entriesByModel.set(entry.manufacturingModelId, list);
+    }
+
+    return models.map((model) => {
+      const byPart = remainingFromEntries(
         model.quantity,
-        model.partCount
+        model.partCount,
+        entriesByModel.get(model.id) ?? []
       );
       const minRemaining = byPart.reduce(
         (min, row) => Math.min(min, row.remaining),
         model.quantity
       );
-      result.push({
+      return {
         id: model.id,
         modelName: model.modelName,
         productName: model.product.name,
@@ -291,9 +312,8 @@ export class ProductionRepository {
         partOptions: partLabels(model.partCount),
         remainingCapacity: minRemaining,
         remainingCapacityByPart: byPart,
-      });
-    }
-    return result;
+      };
+    });
   }
 
   async findLotByNumber(lotNumber: string) {

@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SupplierSelect } from "@/features/inventory/components/shared/supplier-select";
 import { validateQuantityEdit } from "@/lib/purchase-validation";
 import type { MaterialModuleType } from "@/types/enums";
+import { MATERIAL_MODULE_LABELS } from "@/types/enums";
 import type { MaterialPurchaseDto } from "@/types/material-module";
 import {
   updateMaterialPurchaseSchema,
@@ -68,7 +69,7 @@ export function EditPurchaseDialog({
     }
   }, [open, purchase, form]);
 
-  const label = type.charAt(0).toUpperCase() + type.slice(1);
+  const label = MATERIAL_MODULE_LABELS[type];
 
   const handleSubmit = form.handleSubmit(async (data) => {
     if (!purchase) return;

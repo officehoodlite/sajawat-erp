@@ -13,6 +13,7 @@ const OPTIONS_CACHE_KEYS: Record<MaterialModuleType, string> = {
   paint: CACHE_KEYS.paintOptions,
   hardware: CACHE_KEYS.hardwareOptions,
   packing: CACHE_KEYS.packingOptions,
+  edgebinding: CACHE_KEYS.edgebindingOptions,
 };
 
 export class MaterialModuleService {
@@ -104,6 +105,7 @@ const services = {
   paint: new MaterialModuleService("paint"),
   hardware: new MaterialModuleService("hardware"),
   packing: new MaterialModuleService("packing"),
+  edgebinding: new MaterialModuleService("edgebinding"),
 };
 
 export function getMaterialModuleService(module: MaterialModuleType) {

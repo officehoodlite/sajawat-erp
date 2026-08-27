@@ -34,10 +34,16 @@ export interface CatalogProductModelDto {
   productId: string;
   modelName: string;
   partCount: number;
+  boardPresetCount: number;
+  paintPresetCount: number;
+  hardwarePresetCount: number;
+  packingPresetCount: number;
+  edgeBindingPresetCount: number;
   boardPresets: CatalogBoardPresetItemDto[];
   paintPresets: CatalogModelPresetItemDto[];
   hardwarePresets: CatalogModelPresetItemDto[];
   packingPresets: CatalogModelPresetItemDto[];
+  edgeBindingPresets: CatalogModelPresetItemDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -163,6 +169,15 @@ export interface PackingEntryDto {
   unit: Unit;
 }
 
+export interface EdgeBindingEntryDto {
+  id: string;
+  modelId: string;
+  edgeBindingProductId: string;
+  edgeBindingName: string;
+  quantity: number;
+  unit: Unit;
+}
+
 export interface LotListItemDto {
   id: string;
   lotNumber: string;
@@ -222,10 +237,12 @@ export interface ModelDto {
   paintEntries: PaintEntryDto[];
   hardwareEntries: HardwareEntryDto[];
   packingEntries: PackingEntryDto[];
+  edgeBindingEntries: EdgeBindingEntryDto[];
   boardPresets: ModelBoardPresetDto[];
   paintPresets: ModelMaterialPresetDto[];
   hardwarePresets: ModelMaterialPresetDto[];
   packingPresets: ModelMaterialPresetDto[];
+  edgeBindingPresets: ModelMaterialPresetDto[];
 }
 
 export interface BoardUsageSummaryDto {
@@ -316,9 +333,11 @@ export interface LotSummaryDto {
   paintConsumption: MaterialConsumptionSummaryDto[];
   hardwareConsumption: MaterialConsumptionSummaryDto[];
   packingConsumption: MaterialConsumptionSummaryDto[];
+  edgeBindingConsumption: MaterialConsumptionSummaryDto[];
   paintByModel: MaterialByModelRowDto[];
   hardwareByModel: MaterialByModelRowDto[];
   packingByModel: MaterialByModelRowDto[];
+  edgeBindingByModel: MaterialByModelRowDto[];
   workerRates: LotWorkerRatesDto;
   workerEntries: LotWorkerEntryDto[];
   workerSummaries: LotWorkerSummaryDto[];
@@ -383,6 +402,7 @@ export interface ModelLotSummaryDto {
   paints: ModelLotMaterialLineDto[];
   hardware: ModelLotMaterialLineDto[];
   packing: ModelLotMaterialLineDto[];
+  edgeBinding: ModelLotMaterialLineDto[];
 }
 
 export interface CatalogModelLotSummariesDto {
@@ -407,6 +427,12 @@ export interface ModelDetailResponseDto {
     lotNumber: string;
     status: LotStatus;
   };
+}
+
+export interface ManufacturingEntryAckDto {
+  ok: true;
+  lotId: string;
+  modelId: string;
 }
 
 export interface LotDetailDto {

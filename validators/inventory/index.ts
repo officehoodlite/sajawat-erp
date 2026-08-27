@@ -134,17 +134,18 @@ const catalogMaterialPresetWriteSchema = z.object({
 });
 
 const catalogModelPresetIdsSchema = z.object({
-  boardPresets: z.array(catalogBoardPresetWriteSchema).max(50).optional().default([]),
-  paintPresets: z.array(catalogMaterialPresetWriteSchema).max(50).optional().default([]),
-  hardwarePresets: z.array(catalogMaterialPresetWriteSchema).max(50).optional().default([]),
-  packingPresets: z.array(catalogMaterialPresetWriteSchema).max(50).optional().default([]),
+  boardPresets: z.array(catalogBoardPresetWriteSchema).max(200).optional().default([]),
+  paintPresets: z.array(catalogMaterialPresetWriteSchema).max(200).optional().default([]),
+  hardwarePresets: z.array(catalogMaterialPresetWriteSchema).max(200).optional().default([]),
+  packingPresets: z.array(catalogMaterialPresetWriteSchema).max(200).optional().default([]),
+  edgeBindingPresets: z.array(catalogMaterialPresetWriteSchema).max(200).optional().default([]),
 });
 
 const catalogModelFieldsSchema = z
   .object({
     modelNumber: z.string().min(1, "Model number is required").max(50),
     size: z.string().min(1, "Size is required").max(100),
-    partCount: positiveInt.max(26, "Max 26 parts"),
+    partCount: z.coerce.number().int().positive("Must be greater than 0").max(26, "Max 26 parts"),
   })
   .merge(catalogModelPresetIdsSchema);
 
@@ -156,6 +157,7 @@ function toCatalogModelWrite(data: z.infer<typeof catalogModelFieldsSchema>) {
     paintPresets: data.paintPresets,
     hardwarePresets: data.hardwarePresets,
     packingPresets: data.packingPresets,
+    edgeBindingPresets: data.edgeBindingPresets,
   };
 }
 

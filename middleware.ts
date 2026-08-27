@@ -10,23 +10,9 @@ function isPublicPath(pathname: string) {
   return PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-async function isAuthenticated(request: NextRequest): Promise<boolean> {
+function isAuthenticated(request: NextRequest): boolean {
   const token = request.cookies.get(AUTH_COOKIE)?.value;
-  if (!token || token.length < 32) return false;
-
-  try {
-    const verifyUrl = new URL("/api/auth/session", request.nextUrl.origin);
-    const res = await fetch(verifyUrl, {
-      method: "GET",
-      headers: {
-        cookie: `${AUTH_COOKIE}=${token}`,
-      },
-      cache: "no-store",
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
+  return !!token && token.length >= 32;
 }
 
 function withCorrelation(
@@ -60,7 +46,7 @@ export async function middleware(request: NextRequest) {
     return nextWithCorrelation(request);
   }
 
-  const authed = await isAuthenticated(request);
+  const authed = isAuthenticated(request);
 
   if (pathname === "/") {
     return withCorrelation(

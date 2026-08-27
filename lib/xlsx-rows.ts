@@ -32,7 +32,9 @@ function cellToString(value: unknown): string {
   return String(value).trim();
 }
 
-export async function parseFirstSheetRows(buffer: Buffer): Promise<SheetRow[]> {
+export async function parseFirstSheetRows(
+  buffer: Buffer | ArrayBuffer | Uint8Array
+): Promise<SheetRow[]> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
   const sheet = workbook.worksheets[0];

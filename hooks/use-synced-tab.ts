@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 /**
  * Instant tab switches: update local state first, then sync the URL.
@@ -12,7 +12,6 @@ export function useSyncedTab<T extends string>(
   fallback: T,
   param = "tab"
 ) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const fromUrl = searchParams.get(param);
@@ -23,6 +22,15 @@ export function useSyncedTab<T extends string>(
     setTabState(urlTab);
   }, [urlTab]);
 
+  useEffect(() => {
+    const onPopState = () => {
+      const next = new URLSearchParams(window.location.search).get(param);
+      setTabState(allowed.includes(next as T) ? (next as T) : fallback);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [allowed, fallback, param]);
+
   const setTab = useCallback(
     (next: string) => {
       const value = allowed.includes(next as T) ? (next as T) : fallback;
@@ -30,9 +38,10 @@ export function useSyncedTab<T extends string>(
       const params = new URLSearchParams(searchParams.toString());
       params.set(param, value);
       const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      const href = qs ? `${pathname}?${qs}` : pathname;
+      window.history.replaceState(window.history.state, "", href);
     },
-    [allowed, fallback, param, pathname, router, searchParams]
+    [allowed, fallback, param, pathname, searchParams]
   );
 
   return [tab, setTab] as const;

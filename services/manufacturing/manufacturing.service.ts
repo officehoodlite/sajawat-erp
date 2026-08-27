@@ -15,6 +15,7 @@ import { mapLotDetail } from "@/repositories/manufacturing/lot.repository";
 import { lotActualBoardRepository } from "@/repositories/manufacturing/lot-actual-board.repository";
 import { findLotSummaryById } from "@/repositories/manufacturing/model.repository";
 import { lotWorkerRepository } from "@/repositories/manufacturing/lot-worker.repository";
+import type { ManufacturingEntryAckDto } from "@/types/dto";
 import type {
   CreateBoardEntryInput,
   CreateLotActualBoardEntryInput,
@@ -33,12 +34,18 @@ async function invalidateMaterialOptions(type: MaterialType) {
       ? CACHE_KEYS.paintOptions
       : type === "hardware"
         ? CACHE_KEYS.hardwareOptions
-        : CACHE_KEYS.packingOptions;
+        : type === "packing"
+          ? CACHE_KEYS.packingOptions
+          : CACHE_KEYS.edgebindingOptions;
   await cacheDel(key);
 }
 
 async function invalidateBoardCaches() {
   await cacheDel(CACHE_KEYS.boardOptions);
+}
+
+function modelWriteAck(lotId: string, modelId: string): ManufacturingEntryAckDto {
+  return { ok: true, lotId, modelId };
 }
 
 const lotInclude = {
@@ -58,6 +65,7 @@ const lotInclude = {
       paintEntries: { include: { paintProduct: true } },
       hardwareEntries: { include: { hardwareProduct: true } },
       packingEntries: { include: { packingProduct: true } },
+      edgeBindingEntries: { include: { edgeBindingProduct: true } },
       boardPresets: {
         include: { boardThickness: { include: { board: true } } },
         orderBy: { createdAt: "asc" as const },
@@ -72,6 +80,10 @@ const lotInclude = {
       },
       packingPresets: {
         include: { packingProduct: true },
+        orderBy: { createdAt: "asc" as const },
+      },
+      edgeBindingPresets: {
+        include: { edgeBindingProduct: true },
         orderBy: { createdAt: "asc" as const },
       },
     },
@@ -122,6 +134,7 @@ export class ManufacturingService {
         paintPresets: true,
         hardwarePresets: true,
         packingPresets: true,
+        edgeBindingPresets: true,
       },
     });
     if (!catalogModel) throw new Error("Catalog model not found for selected product");
@@ -250,11 +263,40 @@ export class ManufacturingService {
           });
         }
       }
+      if (catalogModel.edgeBindingPresets.length > 0) {
+        await tx.manufacturingModelEdgeBindingPreset.createMany({
+          data: catalogModel.edgeBindingPresets.map((p) => ({
+            modelId: model.id,
+            edgeBindingProductId: p.edgeBindingProductId,
+            quantity: p.quantity,
+          })),
+        });
+        for (const preset of catalogModel.edgeBindingPresets) {
+          const qty = roundDecimal(toNumber(preset.quantity));
+          if (qty <= 0) continue;
+          const stockQty = materialEntryStockQty("edgebinding", qty, input.quantity);
+          await reserveMaterialStock(
+            tx,
+            "edgebinding",
+            preset.edgeBindingProductId,
+            stockQty,
+            "Edge binding product"
+          );
+          await tx.manufacturingEdgeBindingEntry.create({
+            data: {
+              modelId: model.id,
+              edgeBindingProductId: preset.edgeBindingProductId,
+              quantity: qty,
+            },
+          });
+        }
+      }
     });
 
     await invalidateMaterialOptions("paint");
     await invalidateMaterialOptions("hardware");
     await invalidateMaterialOptions("packing");
+    await invalidateMaterialOptions("edgebinding");
 
     const updated = await prisma.manufacturingLot.findUnique({
       where: { id: lotId },
@@ -341,11 +383,7 @@ export class ManufacturingService {
       });
     });
 
-    const updated = await prisma.manufacturingLot.findUnique({
-      where: { id: model.lotId },
-      include: lotInclude,
-    });
-    return mapLotDetail(updated!);
+    return modelWriteAck(model.lotId, modelId);
   }
 
   async updateBoardEntry(entryId: string, input: Partial<CreateBoardEntryInput>) {
@@ -378,11 +416,7 @@ export class ManufacturingService {
       });
     });
 
-    const updated = await prisma.manufacturingLot.findUnique({
-      where: { id: entry.model.lotId },
-      include: lotInclude,
-    });
-    return mapLotDetail(updated!);
+    return modelWriteAck(entry.model.lotId, entry.modelId);
   }
 
   async deleteBoardEntry(entryId: string) {
@@ -397,11 +431,7 @@ export class ManufacturingService {
       await tx.manufacturingBoardEntry.delete({ where: { id: entryId } });
     });
 
-    const updated = await prisma.manufacturingLot.findUnique({
-      where: { id: entry.model.lotId },
-      include: lotInclude,
-    });
-    return mapLotDetail(updated!);
+    return modelWriteAck(entry.model.lotId, entry.modelId);
   }
 
   async createLotActualBoardEntry(lotId: string, input: CreateLotActualBoardEntryInput) {
@@ -595,6 +625,14 @@ export class ManufacturingService {
     return this.updateMaterialEntry("packing", entryId, packingProductId, quantity);
   }
 
+  async createEdgeBindingEntry(modelId: string, edgeBindingProductId: string, quantity: number) {
+    return this.createMaterialEntry("edgebinding", modelId, edgeBindingProductId, quantity);
+  }
+
+  async updateEdgeBindingEntry(entryId: string, edgeBindingProductId: string, quantity: number) {
+    return this.updateMaterialEntry("edgebinding", entryId, edgeBindingProductId, quantity);
+  }
+
   private async createMaterialEntry(
     type: MaterialType,
     modelId: string,
@@ -607,7 +645,14 @@ export class ManufacturingService {
     });
     if (!model) throw new Error("Model not found");
 
-    const label = type === "paint" ? "Paint product" : type === "hardware" ? "Hardware product" : "Packing product";
+    const label =
+      type === "paint"
+        ? "Paint product"
+        : type === "hardware"
+          ? "Hardware product"
+          : type === "packing"
+            ? "Packing product"
+            : "Edge binding product";
 
     const qty = roundDecimal(quantity);
     const stockQty = materialEntryStockQty(type, qty, model.quantity);
@@ -623,20 +668,20 @@ export class ManufacturingService {
         await tx.manufacturingHardwareEntry.create({
           data: { modelId, hardwareProductId: productId, quantity: qty },
         });
-      } else {
+      } else if (type === "packing") {
         await tx.manufacturingPackingEntry.create({
           data: { modelId, packingProductId: productId, quantity: qty },
+        });
+      } else {
+        await tx.manufacturingEdgeBindingEntry.create({
+          data: { modelId, edgeBindingProductId: productId, quantity: qty },
         });
       }
     });
 
     await invalidateMaterialOptions(type);
 
-    const updated = await prisma.manufacturingLot.findUnique({
-      where: { id: model.lotId },
-      include: lotInclude,
-    });
-    return mapLotDetail(updated!);
+    return modelWriteAck(model.lotId, modelId);
   }
 
   private async updateMaterialEntry(
@@ -676,21 +721,22 @@ export class ManufacturingService {
           where: { id: entryId },
           data: { hardwareProductId: productId, quantity: newQty },
         });
-      } else {
+      } else if (type === "packing") {
         await tx.manufacturingPackingEntry.update({
           where: { id: entryId },
           data: { packingProductId: productId, quantity: newQty },
+        });
+      } else {
+        await tx.manufacturingEdgeBindingEntry.update({
+          where: { id: entryId },
+          data: { edgeBindingProductId: productId, quantity: newQty },
         });
       }
     });
 
     await invalidateMaterialOptions(type);
 
-    const updated = await prisma.manufacturingLot.findUnique({
-      where: { id: model.lotId },
-      include: lotInclude,
-    });
-    return mapLotDetail(updated!);
+    return modelWriteAck(model.lotId, model.id);
   }
 
   async deletePaintEntry(entryId: string) {
@@ -703,6 +749,10 @@ export class ManufacturingService {
 
   async deletePackingEntry(entryId: string) {
     return this.deleteMaterialEntry("packing", entryId);
+  }
+
+  async deleteEdgeBindingEntry(entryId: string) {
+    return this.deleteMaterialEntry("edgebinding", entryId);
   }
 
   private async deleteMaterialEntry(type: MaterialType, entryId: string) {
@@ -721,16 +771,13 @@ export class ManufacturingService {
 
       if (type === "paint") await tx.manufacturingPaintEntry.delete({ where: { id: entryId } });
       else if (type === "hardware") await tx.manufacturingHardwareEntry.delete({ where: { id: entryId } });
-      else await tx.manufacturingPackingEntry.delete({ where: { id: entryId } });
+      else if (type === "packing") await tx.manufacturingPackingEntry.delete({ where: { id: entryId } });
+      else await tx.manufacturingEdgeBindingEntry.delete({ where: { id: entryId } });
     });
 
     await invalidateMaterialOptions(type);
 
-    const updated = await prisma.manufacturingLot.findUnique({
-      where: { id: model.lotId },
-      include: lotInclude,
-    });
-    return mapLotDetail(updated!);
+    return modelWriteAck(model.lotId, model.id);
   }
 
   private async getMaterialEntry(type: MaterialType, entryId: string) {
@@ -744,9 +791,14 @@ export class ManufacturingService {
       if (!e) throw new Error("Entry not found");
       return { modelId: e.modelId, productId: e.hardwareProductId, quantity: e.quantity };
     }
-    const e = await prisma.manufacturingPackingEntry.findUnique({ where: { id: entryId } });
+    if (type === "packing") {
+      const e = await prisma.manufacturingPackingEntry.findUnique({ where: { id: entryId } });
+      if (!e) throw new Error("Entry not found");
+      return { modelId: e.modelId, productId: e.packingProductId, quantity: e.quantity };
+    }
+    const e = await prisma.manufacturingEdgeBindingEntry.findUnique({ where: { id: entryId } });
     if (!e) throw new Error("Entry not found");
-    return { modelId: e.modelId, productId: e.packingProductId, quantity: e.quantity };
+    return { modelId: e.modelId, productId: e.edgeBindingProductId, quantity: e.quantity };
   }
 
   async completeLot(lotId: string) {
@@ -770,6 +822,7 @@ export class ManufacturingService {
               paintEntries: true,
               hardwareEntries: true,
               packingEntries: true,
+              edgeBindingEntries: true,
             },
           },
         },
@@ -816,6 +869,7 @@ export class ManufacturingService {
       const paintEntries: MaterialEntry[] = [];
       const hardwareEntries: MaterialEntry[] = [];
       const packingEntries: MaterialEntry[] = [];
+      const edgeBindingEntries: MaterialEntry[] = [];
 
       for (const model of lot.models) {
         for (const entry of model.paintEntries) {
@@ -842,6 +896,16 @@ export class ManufacturingService {
             quantity: roundDecimal(toNumber(entry.quantity)),
           });
         }
+        for (const entry of model.edgeBindingEntries) {
+          edgeBindingEntries.push({
+            productId: entry.edgeBindingProductId,
+            modelId: model.id,
+            quantity: totalForModelQty(
+              roundDecimal(toNumber(entry.quantity)),
+              model.quantity
+            ),
+          });
+        }
       }
 
       async function writeMaterialConsumptionLogs(
@@ -861,7 +925,9 @@ export class ManufacturingService {
               ? await tx.paintProduct.findUnique({ where: { id: productId } })
               : type === "hardware"
                 ? await tx.hardwareProduct.findUnique({ where: { id: productId } })
-                : await tx.packingProduct.findUnique({ where: { id: productId } });
+                : type === "packing"
+                  ? await tx.packingProduct.findUnique({ where: { id: productId } })
+                  : await tx.edgeBindingProduct.findUnique({ where: { id: productId } });
           if (!product) throw new Error("Product not found");
 
           const totalUsed = roundDecimal(
@@ -880,7 +946,8 @@ export class ManufacturingService {
             };
             if (type === "paint") await tx.paintConsumptionLog.create({ data: logData });
             else if (type === "hardware") await tx.hardwareConsumptionLog.create({ data: logData });
-            else await tx.packingConsumptionLog.create({ data: logData });
+            else if (type === "packing") await tx.packingConsumptionLog.create({ data: logData });
+            else await tx.edgeBindingConsumptionLog.create({ data: logData });
           }
         }
       }
@@ -888,6 +955,7 @@ export class ManufacturingService {
       await writeMaterialConsumptionLogs(paintEntries, "paint");
       await writeMaterialConsumptionLogs(hardwareEntries, "hardware");
       await writeMaterialConsumptionLogs(packingEntries, "packing");
+      await writeMaterialConsumptionLogs(edgeBindingEntries, "edgebinding");
 
       await tx.manufacturingLot.update({
         where: { id: lotId },

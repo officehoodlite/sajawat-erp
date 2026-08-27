@@ -67,6 +67,17 @@ export const queryKeys = {
     consumption: (page: number, limit: number, search: string, productId?: string) =>
       ["packing", "consumption", page, limit, search, productId] as const,
   },
+  edgebinding: {
+    all: ["edgebinding"] as const,
+    options: ["edgebinding", "options"] as const,
+    products: (page: number, limit: number, search: string) =>
+      ["edgebinding", "products", page, limit, search] as const,
+    stock: ["edgebinding", "stock"] as const,
+    purchases: (page: number, limit: number, search: string, productId?: string) =>
+      ["edgebinding", "purchases", page, limit, search, productId] as const,
+    consumption: (page: number, limit: number, search: string, productId?: string) =>
+      ["edgebinding", "consumption", page, limit, search, productId] as const,
+  },
   production: {
     all: ["production"] as const,
     byDate: (date: string) => ["production", "date", date] as const,

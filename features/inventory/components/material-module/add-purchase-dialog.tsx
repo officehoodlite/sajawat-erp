@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { SupplierSelect } from "@/features/inventory/components/shared/supplier-select";
 import type { MaterialModuleType } from "@/types/enums";
+import { MATERIAL_MODULE_LABELS } from "@/types/enums";
 import {
   createMaterialPurchaseSchema,
   type CreateMaterialPurchaseInput,
@@ -75,7 +76,7 @@ export function AddPurchaseDialog({
     }
   }, [open, defaultProductId, form]);
 
-  const label = type.charAt(0).toUpperCase() + type.slice(1);
+  const label = MATERIAL_MODULE_LABELS[type];
 
   const handleSubmit = form.handleSubmit(async (data) => {
     onOpenChange(false);

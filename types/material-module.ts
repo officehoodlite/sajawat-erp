@@ -75,4 +75,5 @@ export const MATERIAL_MODULES: Record<MaterialModuleType, MaterialModuleConfig> 
   paint: { type: "paint", label: "Paint", nameField: "name" },
   hardware: { type: "hardware", label: "Hardware", nameField: "name" },
   packing: { type: "packing", label: "Packing", nameField: "name" },
+  edgebinding: { type: "edgebinding", label: "Edge Binding", nameField: "name" },
 };

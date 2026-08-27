@@ -3,11 +3,11 @@
 import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { lotDetailToSummary } from "@/features/manufacturing/utils/lot-cache";
 import type {
   LotDetailDto,
   LotListItemDto,
   LotSummaryDto,
+  ManufacturingEntryAckDto,
   ModelDetailResponseDto,
   PaginatedResponse,
   ProductDto,
@@ -26,7 +26,6 @@ import { toast } from "sonner";
 
 function syncLotCaches(queryClient: QueryClient, lot: LotDetailDto) {
   queryClient.setQueryData(queryKeys.lots.detail(lot.id), lot);
-  queryClient.setQueryData(queryKeys.lots.summary(lot.id), lotDetailToSummary(lot));
 
   for (const model of lot.models) {
     queryClient.setQueryData<ModelDetailResponseDto>(queryKeys.models.detail(model.id), {
@@ -39,22 +38,40 @@ function syncLotCaches(queryClient: QueryClient, lot: LotDetailDto) {
     });
   }
 
-  void queryClient.invalidateQueries({ queryKey: queryKeys.boards.all });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.paint.all });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.hardware.all });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.packing.all });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.lots.summary(lot.id) });
+}
+
+type InventoryScope = "boards" | "paint" | "hardware" | "packing" | "edgebinding";
+
+function invalidateInventory(queryClient: QueryClient, scopes: InventoryScope[]) {
+  for (const scope of scopes) {
+    void queryClient.invalidateQueries({ queryKey: queryKeys[scope].all });
+  }
+}
+
+async function refreshAfterModelWrite(
+  queryClient: QueryClient,
+  lotId: string,
+  modelId: string,
+  inventory?: InventoryScope[]
+) {
+  await queryClient.invalidateQueries({ queryKey: queryKeys.models.detail(modelId) });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.lots.summary(lotId) });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.lots.detail(lotId) });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.lots.all });
+  if (inventory?.length) invalidateInventory(queryClient, inventory);
 }
 
 async function postEntriesSequentially<T>(
   entries: T[],
-  post: (entry: T) => Promise<LotDetailDto>
-): Promise<{ lot: LotDetailDto; count: number }> {
-  let lot: LotDetailDto | null = null;
+  post: (entry: T) => Promise<ManufacturingEntryAckDto>
+): Promise<{ ack: ManufacturingEntryAckDto; count: number }> {
+  let ack: ManufacturingEntryAckDto | null = null;
   for (const entry of entries) {
-    lot = await post(entry);
+    ack = await post(entry);
   }
-  if (!lot) throw new Error("No entries to save");
-  return { lot, count: entries.length };
+  if (!ack) throw new Error("No entries to save");
+  return { ack, count: entries.length };
 }
 
 function entryToast(label: string, count: number) {
@@ -200,7 +217,7 @@ export function useCompleteLot(id: string) {
     onSuccess: (data) => {
       syncLotCaches(queryClient, data);
       queryClient.invalidateQueries({ queryKey: queryKeys.lots.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.all });
+      invalidateInventory(queryClient, ["boards", "paint", "hardware", "packing", "edgebinding"]);
       toast.success("Lot completed and stock deducted");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -217,6 +234,7 @@ export function useCreateModel(lotId: string) {
       }),
     onSuccess: (data) => {
       syncLotCaches(queryClient, data);
+      invalidateInventory(queryClient, ["boards", "paint", "hardware", "packing", "edgebinding"]);
       toast.success("Model added");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -232,6 +250,7 @@ export function useDeleteModel(lotId: string) {
       }),
     onSuccess: (data) => {
       syncLotCaches(queryClient, data);
+      invalidateInventory(queryClient, ["paint", "hardware", "packing", "edgebinding"]);
       toast.success("Model deleted");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -244,14 +263,14 @@ export function useCreateBoardEntry(lotId: string, modelId: string) {
     mutationFn: (data: CreateBoardEntryInput | CreateBoardEntryInput[]) => {
       const entries = Array.isArray(data) ? data : [data];
       return postEntriesSequentially(entries, (entry) =>
-        apiFetch<LotDetailDto>(`/api/manufacturing/models/${modelId}/board-entries`, {
+        apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/models/${modelId}/board-entries`, {
           method: "POST",
           body: JSON.stringify(entry),
         })
       );
     },
-    onSuccess: ({ lot, count }) => {
-      syncLotCaches(queryClient, lot);
+    onSuccess: async ({ ack, count }) => {
+      await refreshAfterModelWrite(queryClient, ack.lotId, ack.modelId);
       toast.success(entryToast("Board", count));
     },
     onError: (error: Error) => toast.error(error.message),
@@ -268,12 +287,12 @@ export function useUpdateBoardEntry(lotId: string) {
       entryId: string;
       data: Partial<CreateBoardEntryInput>;
     }) =>
-      apiFetch<LotDetailDto>(`/api/manufacturing/board-entries/${entryId}`, {
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/board-entries/${entryId}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
-    onSuccess: (data) => {
-      syncLotCaches(queryClient, data);
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId);
       toast.success("Board entry updated");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -284,7 +303,7 @@ export function useDeleteBoardEntry(lotId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (entryId: string) =>
-      apiFetch<LotDetailDto>(`/api/manufacturing/board-entries/${entryId}`, {
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/board-entries/${entryId}`, {
         method: "DELETE",
       }),
     onMutate: async (entryId) => {
@@ -313,8 +332,8 @@ export function useDeleteBoardEntry(lotId: string) {
       });
       toast.error(error.message);
     },
-    onSuccess: (data) => {
-      syncLotCaches(queryClient, data);
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId);
       toast.success("Board entry deleted");
     },
   });
@@ -330,14 +349,14 @@ export function useCreatePaintEntry(lotId: string, modelId: string) {
     ) => {
       const entries = Array.isArray(data) ? data : [data];
       return postEntriesSequentially(entries, (entry) =>
-        apiFetch<LotDetailDto>(`/api/manufacturing/models/${modelId}/paint-entries`, {
+        apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/models/${modelId}/paint-entries`, {
           method: "POST",
           body: JSON.stringify(entry),
         })
       );
     },
-    onSuccess: ({ lot, count }) => {
-      syncLotCaches(queryClient, lot);
+    onSuccess: async ({ ack, count }) => {
+      await refreshAfterModelWrite(queryClient, ack.lotId, ack.modelId, ["paint"]);
       toast.success(entryToast("Paint", count));
     },
     onError: (error: Error) => toast.error(error.message),
@@ -348,11 +367,11 @@ export function useDeletePaintEntry(lotId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (entryId: string) =>
-      apiFetch<LotDetailDto>(`/api/manufacturing/paint-entries/${entryId}`, {
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/paint-entries/${entryId}`, {
         method: "DELETE",
       }),
-    onSuccess: (data) => {
-      syncLotCaches(queryClient, data);
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId, ["paint"]);
       toast.success("Paint entry deleted");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -363,15 +382,15 @@ export function useUpdatePaintEntry(lotId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: { entryId: string; paintProductId: string; quantity: number }) =>
-      apiFetch<LotDetailDto>(`/api/manufacturing/paint-entries/${data.entryId}`, {
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/paint-entries/${data.entryId}`, {
         method: "PUT",
         body: JSON.stringify({
           paintProductId: data.paintProductId,
           quantity: data.quantity,
         }),
       }),
-    onSuccess: (data) => {
-      syncLotCaches(queryClient, data);
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId, ["paint"]);
       toast.success("Paint entry updated");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -388,14 +407,14 @@ export function useCreateHardwareEntry(lotId: string, modelId: string) {
     ) => {
       const entries = Array.isArray(data) ? data : [data];
       return postEntriesSequentially(entries, (entry) =>
-        apiFetch<LotDetailDto>(`/api/manufacturing/models/${modelId}/hardware-entries`, {
+        apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/models/${modelId}/hardware-entries`, {
           method: "POST",
           body: JSON.stringify(entry),
         })
       );
     },
-    onSuccess: ({ lot, count }) => {
-      syncLotCaches(queryClient, lot);
+    onSuccess: async ({ ack, count }) => {
+      await refreshAfterModelWrite(queryClient, ack.lotId, ack.modelId, ["hardware"]);
       toast.success(entryToast("Hardware", count));
     },
     onError: (error: Error) => toast.error(error.message),
@@ -406,11 +425,11 @@ export function useDeleteHardwareEntry(lotId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (entryId: string) =>
-      apiFetch<LotDetailDto>(`/api/manufacturing/hardware-entries/${entryId}`, {
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/hardware-entries/${entryId}`, {
         method: "DELETE",
       }),
-    onSuccess: (data) => {
-      syncLotCaches(queryClient, data);
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId, ["hardware"]);
       toast.success("Hardware entry deleted");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -421,15 +440,15 @@ export function useUpdateHardwareEntry(lotId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: { entryId: string; hardwareProductId: string; quantity: number }) =>
-      apiFetch<LotDetailDto>(`/api/manufacturing/hardware-entries/${data.entryId}`, {
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/hardware-entries/${data.entryId}`, {
         method: "PUT",
         body: JSON.stringify({
           hardwareProductId: data.hardwareProductId,
           quantity: data.quantity,
         }),
       }),
-    onSuccess: (data) => {
-      syncLotCaches(queryClient, data);
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId, ["hardware"]);
       toast.success("Hardware entry updated");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -446,14 +465,14 @@ export function useCreatePackingEntry(lotId: string, modelId: string) {
     ) => {
       const entries = Array.isArray(data) ? data : [data];
       return postEntriesSequentially(entries, (entry) =>
-        apiFetch<LotDetailDto>(`/api/manufacturing/models/${modelId}/packing-entries`, {
+        apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/models/${modelId}/packing-entries`, {
           method: "POST",
           body: JSON.stringify(entry),
         })
       );
     },
-    onSuccess: ({ lot, count }) => {
-      syncLotCaches(queryClient, lot);
+    onSuccess: async ({ ack, count }) => {
+      await refreshAfterModelWrite(queryClient, ack.lotId, ack.modelId, ["packing"]);
       toast.success(entryToast("Packing", count));
     },
     onError: (error: Error) => toast.error(error.message),
@@ -464,11 +483,11 @@ export function useDeletePackingEntry(lotId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (entryId: string) =>
-      apiFetch<LotDetailDto>(`/api/manufacturing/packing-entries/${entryId}`, {
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/packing-entries/${entryId}`, {
         method: "DELETE",
       }),
-    onSuccess: (data) => {
-      syncLotCaches(queryClient, data);
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId, ["packing"]);
       toast.success("Packing entry deleted");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -479,16 +498,77 @@ export function useUpdatePackingEntry(lotId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: { entryId: string; packingProductId: string; quantity: number }) =>
-      apiFetch<LotDetailDto>(`/api/manufacturing/packing-entries/${data.entryId}`, {
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/packing-entries/${data.entryId}`, {
         method: "PUT",
         body: JSON.stringify({
           packingProductId: data.packingProductId,
           quantity: data.quantity,
         }),
       }),
-    onSuccess: (data) => {
-      syncLotCaches(queryClient, data);
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId, ["packing"]);
       toast.success("Packing entry updated");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useCreateEdgeBindingEntry(lotId: string, modelId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (
+      data:
+        | { edgeBindingProductId: string; quantity: number }
+        | Array<{ edgeBindingProductId: string; quantity: number }>
+    ) => {
+      const entries = Array.isArray(data) ? data : [data];
+      return postEntriesSequentially(entries, (entry) =>
+        apiFetch<ManufacturingEntryAckDto>(
+          `/api/manufacturing/models/${modelId}/edgebinding-entries`,
+          {
+            method: "POST",
+            body: JSON.stringify(entry),
+          }
+        )
+      );
+    },
+    onSuccess: async ({ ack, count }) => {
+      await refreshAfterModelWrite(queryClient, ack.lotId, ack.modelId, ["edgebinding"]);
+      toast.success(entryToast("Edge Binding", count));
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useDeleteEdgeBindingEntry(lotId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (entryId: string) =>
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/edgebinding-entries/${entryId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId, ["edgebinding"]);
+      toast.success("Edge Binding entry deleted");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useUpdateEdgeBindingEntry(lotId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { entryId: string; edgeBindingProductId: string; quantity: number }) =>
+      apiFetch<ManufacturingEntryAckDto>(`/api/manufacturing/edgebinding-entries/${data.entryId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          edgeBindingProductId: data.edgeBindingProductId,
+          quantity: data.quantity,
+        }),
+      }),
+    onSuccess: async (data) => {
+      await refreshAfterModelWrite(queryClient, data.lotId, data.modelId, ["edgebinding"]);
+      toast.success("Edge Binding entry updated");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -543,6 +623,16 @@ export function usePackingOptions(enabled = true) {
   });
 }
 
+export function useEdgeBindingOptions(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.edgebinding.options,
+    queryFn: () =>
+      apiFetch<Array<{ id: string; label: string }>>("/api/inventory/edgebinding-options"),
+    staleTime: 10 * 60 * 1000,
+    enabled,
+  });
+}
+
 export function useCreateLotActualBoardEntry(lotId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -582,6 +672,7 @@ export function useUpdateLotActualBoardEntry(lotId: string) {
       ),
     onSuccess: (summary) => {
       syncSummaryCache(queryClient, summary);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.boards.all });
       toast.success("Actual board entry updated");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -597,6 +688,7 @@ export function useDeleteLotActualBoardEntry(lotId: string) {
       }),
     onSuccess: (summary) => {
       syncSummaryCache(queryClient, summary);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.boards.all });
       toast.success("Actual board entry deleted");
     },
     onError: (error: Error) => toast.error(error.message),

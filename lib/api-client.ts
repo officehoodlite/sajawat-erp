@@ -25,6 +25,15 @@ export async function apiFetch<T>(
 
   const json = await response.json();
 
+  if (
+    response.status === 401 &&
+    typeof window !== "undefined" &&
+    !url.startsWith("/api/auth/") &&
+    !window.location.pathname.startsWith("/login")
+  ) {
+    window.location.assign("/login");
+  }
+
   if (!response.ok || json.error) {
     throw new ApiError(
       json.message ?? "Request failed",

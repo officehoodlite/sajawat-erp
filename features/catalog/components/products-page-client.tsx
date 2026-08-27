@@ -28,8 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  useCatalogProduct,
-  useCatalogProducts,
+  useCatalogProductPicker,
   useCreateCatalogProduct,
   useCreateCatalogProductModel,
   useDeleteCatalogProduct,
@@ -41,10 +40,11 @@ import type { CatalogProductDetailDto, CatalogProductModelDto } from "@/types/dt
 
 function presetSummary(model: CatalogProductModelDto) {
   const parts = [
-    model.boardPresets.length ? `${model.boardPresets.length} board` : null,
-    model.paintPresets.length ? `${model.paintPresets.length} paint` : null,
-    model.hardwarePresets.length ? `${model.hardwarePresets.length} hw` : null,
-    model.packingPresets.length ? `${model.packingPresets.length} pack` : null,
+    model.boardPresetCount ? `${model.boardPresetCount} board` : null,
+    model.paintPresetCount ? `${model.paintPresetCount} paint` : null,
+    model.hardwarePresetCount ? `${model.hardwarePresetCount} hw` : null,
+    model.packingPresetCount ? `${model.packingPresetCount} pack` : null,
+    model.edgeBindingPresetCount ? `${model.edgeBindingPresetCount} edge` : null,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : "—";
 }
@@ -56,9 +56,8 @@ function modelMaterialsHref(productId: string, modelId: string) {
 export function ProductsPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: products = [], isLoading } = useCatalogProducts();
+  const { data: products = [], isLoading } = useCatalogProductPicker();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { data: selectedProduct } = useCatalogProduct(selectedId ?? "");
 
   const createProduct = useCreateCatalogProduct();
   const updateProduct = useUpdateCatalogProduct();
@@ -90,7 +89,7 @@ export function ProductsPageClient() {
     return products.filter((p) => p.name.toLowerCase().includes(q));
   }, [products, search]);
 
-  const activeProduct = selectedProduct ?? products.find((p) => p.id === selectedId) ?? null;
+  const activeProduct = products.find((p) => p.id === selectedId) ?? null;
 
   const selectProduct = (productId: string | null) => {
     setSelectedId(productId);
@@ -153,6 +152,7 @@ export function ProductsPageClient() {
         paintPresets: [],
         hardwarePresets: [],
         packingPresets: [],
+        edgeBindingPresets: [],
       });
       setModelFormOpen(false);
       router.push(modelMaterialsHref(selectedId, created.id));
@@ -377,8 +377,8 @@ export function ProductsPageClient() {
               </p>
             ) : null}
             <p className="text-xs text-muted-foreground">
-              After creating the model, you will set its default boards, paint, hardware, and
-              packing on the next page.
+              After creating the model, you will set its default boards, paint, hardware,
+              packing, and edge binding on the next page.
             </p>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setModelFormOpen(false)}>

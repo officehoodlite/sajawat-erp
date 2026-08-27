@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { Prisma } from "@prisma/client";
 import { PAGE_SIZE } from "@/lib/pagination";
 
 const GENERIC_ERROR = "An unexpected error occurred. Please try again.";
@@ -58,6 +59,20 @@ export async function caughtErrorResponse(
 ) {
   const correlationId = await resolveCorrelationId();
   console.error(`[api-error] ${correlationId}`, error);
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2002") {
+      return errorResponse("A record with this name already exists.", 409, undefined, correlationId);
+    }
+    if (error.code === "P2021" || error.code === "P2022") {
+      return errorResponse(
+        "Database is missing required tables or columns. Run prisma migrate deploy, then retry.",
+        503,
+        undefined,
+        correlationId
+      );
+    }
+  }
 
   const err = error as Error & { statusCode?: number; details?: unknown };
   const resolvedStatus = typeof err.statusCode === "number" ? err.statusCode : status;

@@ -72,6 +72,13 @@ export function lotDetailToSummary(lot: LotDetailDto): LotSummaryDto {
       unit: e.unit,
     }))
   );
+  const edgeBindingEntries = lot.models.flatMap((m) =>
+    m.edgeBindingEntries.map((e) => ({
+      name: e.edgeBindingName,
+      quantity: totalForModelQty(e.quantity, m.quantity),
+      unit: e.unit,
+    }))
+  );
 
   const paintByModel = buildMaterialByModel(
     lot.models.flatMap((m) =>
@@ -99,6 +106,16 @@ export function lotDetailToSummary(lot: LotDetailDto): LotSummaryDto {
         modelId: m.id,
         name: e.packingName,
         quantity: round2(e.quantity),
+        unit: e.unit,
+      }))
+    )
+  );
+  const edgeBindingByModel = buildMaterialByModel(
+    lot.models.flatMap((m) =>
+      m.edgeBindingEntries.map((e) => ({
+        modelId: m.id,
+        name: e.edgeBindingName,
+        quantity: totalForModelQty(e.quantity, m.quantity),
         unit: e.unit,
       }))
     )
@@ -137,9 +154,11 @@ export function lotDetailToSummary(lot: LotDetailDto): LotSummaryDto {
     paintConsumption: groupMaterialConsumption(paintEntries),
     hardwareConsumption: groupMaterialConsumption(hardwareEntries),
     packingConsumption: groupMaterialConsumption(packingEntries),
+    edgeBindingConsumption: groupMaterialConsumption(edgeBindingEntries),
     paintByModel,
     hardwareByModel,
     packingByModel,
+    edgeBindingByModel,
     workerRates: { ...DEFAULT_WORKER_RATES },
     workerEntries: [],
     workerSummaries: computeWorkerSummaries([], DEFAULT_WORKER_RATES),

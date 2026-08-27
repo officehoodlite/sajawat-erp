@@ -65,6 +65,7 @@ export async function findCatalogModelLotSummaries(
       paintEntries: { include: { paintProduct: true } },
       hardwareEntries: { include: { hardwareProduct: true } },
       packingEntries: { include: { packingProduct: true } },
+      edgeBindingEntries: { include: { edgeBindingProduct: true } },
     },
     orderBy: { lot: { createdAt: "desc" } },
     take: 25,
@@ -116,6 +117,15 @@ export async function findCatalogModelLotSummaries(
       qty
     );
 
+    const edgeBinding = groupLines(
+      model.edgeBindingEntries.map((e) => ({
+        label: e.edgeBindingProduct.name,
+        unit: e.edgeBindingProduct.unit,
+        total: totalForModelQty(toNumber(e.quantity), qty),
+      })),
+      qty
+    );
+
     lots.push({
       lotId: model.lot.id,
       lotNumber: model.lot.lotNumber,
@@ -126,6 +136,7 @@ export async function findCatalogModelLotSummaries(
       paints,
       hardware,
       packing,
+      edgeBinding,
     });
   }
 

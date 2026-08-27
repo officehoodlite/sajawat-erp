@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { rethrowPrismaWrite } from "@/lib/prisma-write";
 import { toNumber } from "@/lib/mappers";
 import { CACHE_KEYS, cacheDel, cacheGet, cacheSet } from "@/lib/redis";
 import type { CatalogProductDetailDto, CatalogProductModelDto, ProductDto } from "@/types/dto";
@@ -24,6 +25,10 @@ const productModelInclude = {
   },
   packingPresets: {
     include: { packingProduct: true },
+    orderBy: { createdAt: "asc" as const },
+  },
+  edgeBindingPresets: {
+    include: { edgeBindingProduct: true },
     orderBy: { createdAt: "asc" as const },
   },
 };
@@ -61,6 +66,12 @@ type ProductModelRow = {
     quantity: unknown;
     packingProduct: { name: string; brand: string | null };
   }>;
+  edgeBindingPresets: Array<{
+    id: string;
+    edgeBindingProductId: string;
+    quantity: unknown;
+    edgeBindingProduct: { name: string; brand: string | null };
+  }>;
 };
 
 function materialLabel(name: string, brand: string | null) {
@@ -73,6 +84,11 @@ function mapProductModel(row: ProductModelRow): CatalogProductModelDto {
     productId: row.productId,
     modelName: row.modelName,
     partCount: row.partCount,
+    boardPresetCount: row.boardPresets.length,
+    paintPresetCount: row.paintPresets.length,
+    hardwarePresetCount: row.hardwarePresets.length,
+    packingPresetCount: row.packingPresets.length,
+    edgeBindingPresetCount: row.edgeBindingPresets.length,
     boardPresets: row.boardPresets.map((p) => ({
       id: p.id,
       boardThicknessId: p.boardThicknessId,
@@ -97,6 +113,12 @@ function mapProductModel(row: ProductModelRow): CatalogProductModelDto {
       id: p.id,
       productId: p.packingProductId,
       label: materialLabel(p.packingProduct.name, p.packingProduct.brand),
+      quantity: toNumber(p.quantity),
+    })),
+    edgeBindingPresets: row.edgeBindingPresets.map((p) => ({
+      id: p.id,
+      productId: p.edgeBindingProductId,
+      label: materialLabel(p.edgeBindingProduct.name, p.edgeBindingProduct.brand),
       quantity: toNumber(p.quantity),
     })),
     createdAt: row.createdAt.toISOString(),
@@ -125,48 +147,62 @@ async function replaceModelPresets(
   productModelId: string,
   data: CatalogProductModelWrite
 ) {
-  await tx.productModelBoardPreset.deleteMany({ where: { productModelId } });
-  await tx.productModelPaintPreset.deleteMany({ where: { productModelId } });
-  await tx.productModelHardwarePreset.deleteMany({ where: { productModelId } });
-  await tx.productModelPackingPreset.deleteMany({ where: { productModelId } });
+  try {
+    await tx.productModelBoardPreset.deleteMany({ where: { productModelId } });
+    await tx.productModelPaintPreset.deleteMany({ where: { productModelId } });
+    await tx.productModelHardwarePreset.deleteMany({ where: { productModelId } });
+    await tx.productModelPackingPreset.deleteMany({ where: { productModelId } });
+    await tx.productModelEdgeBindingPreset.deleteMany({ where: { productModelId } });
 
-  if (data.boardPresets.length > 0) {
-    await tx.productModelBoardPreset.createMany({
-      data: data.boardPresets.map((preset) => ({
-        productModelId,
-        boardThicknessId: preset.boardThicknessId,
-        length: preset.length,
-        width: preset.width,
-        quantity: preset.quantity,
-      })),
-    });
-  }
-  if (data.paintPresets.length > 0) {
-    await tx.productModelPaintPreset.createMany({
-      data: data.paintPresets.map((preset) => ({
-        productModelId,
-        paintProductId: preset.productId,
-        quantity: preset.quantity,
-      })),
-    });
-  }
-  if (data.hardwarePresets.length > 0) {
-    await tx.productModelHardwarePreset.createMany({
-      data: data.hardwarePresets.map((preset) => ({
-        productModelId,
-        hardwareProductId: preset.productId,
-        quantity: preset.quantity,
-      })),
-    });
-  }
-  if (data.packingPresets.length > 0) {
-    await tx.productModelPackingPreset.createMany({
-      data: data.packingPresets.map((preset) => ({
-        productModelId,
-        packingProductId: preset.productId,
-        quantity: preset.quantity,
-      })),
-    });
+    if (data.boardPresets.length > 0) {
+      await tx.productModelBoardPreset.createMany({
+        data: data.boardPresets.map((preset) => ({
+          productModelId,
+          boardThicknessId: preset.boardThicknessId,
+          length: preset.length,
+          width: preset.width,
+          quantity: preset.quantity,
+        })),
+      });
+    }
+    if (data.paintPresets.length > 0) {
+      await tx.productModelPaintPreset.createMany({
+        data: data.paintPresets.map((preset) => ({
+          productModelId,
+          paintProductId: preset.productId,
+          quantity: preset.quantity,
+        })),
+      });
+    }
+    if (data.hardwarePresets.length > 0) {
+      await tx.productModelHardwarePreset.createMany({
+        data: data.hardwarePresets.map((preset) => ({
+          productModelId,
+          hardwareProductId: preset.productId,
+          quantity: preset.quantity,
+        })),
+      });
+    }
+    if (data.packingPresets.length > 0) {
+      await tx.productModelPackingPreset.createMany({
+        data: data.packingPresets.map((preset) => ({
+          productModelId,
+          packingProductId: preset.productId,
+          quantity: preset.quantity,
+        })),
+      });
+    }
+    if (data.edgeBindingPresets.length > 0) {
+      await tx.productModelEdgeBindingPreset.createMany({
+        data: data.edgeBindingPresets.map((preset) => ({
+          productModelId,
+          edgeBindingProductId: preset.productId,
+          quantity: preset.quantity,
+        })),
+      });
+    }
+  } catch (error) {
+    rethrowPrismaWrite(error);
   }
 }
 
@@ -224,6 +260,15 @@ export class ProductRepository {
             partCount: true,
             createdAt: true,
             updatedAt: true,
+            _count: {
+              select: {
+                boardPresets: true,
+                paintPresets: true,
+                hardwarePresets: true,
+                packingPresets: true,
+                edgeBindingPresets: true,
+              },
+            },
           },
         },
       },
@@ -239,10 +284,16 @@ export class ProductRepository {
         productId: model.productId,
         modelName: model.modelName,
         partCount: model.partCount,
+        boardPresetCount: model._count.boardPresets,
+        paintPresetCount: model._count.paintPresets,
+        hardwarePresetCount: model._count.hardwarePresets,
+        packingPresetCount: model._count.packingPresets,
+        edgeBindingPresetCount: model._count.edgeBindingPresets,
         boardPresets: [],
         paintPresets: [],
         hardwarePresets: [],
         packingPresets: [],
+        edgeBindingPresets: [],
         createdAt: model.createdAt.toISOString(),
         updatedAt: model.updatedAt.toISOString(),
       })),

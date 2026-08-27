@@ -60,6 +60,7 @@ function downloadOverallSummary(lot: LotSummaryDto) {
   appendMaterials("Paint", lot.paintByModel);
   appendMaterials("Hardware", lot.hardwareByModel);
   appendMaterials("Packing", lot.packingByModel);
+  appendMaterials("Edge Binding", lot.edgeBindingByModel);
 
   const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
   const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
@@ -103,6 +104,13 @@ export function OverallSummaryTab({ lot }: OverallSummaryTabProps) {
         title="Packing"
         description="Packing usage by model."
         rows={lot.packingByModel}
+        models={lot.models}
+        formatValue={(value, unit) => `${formatNumber(value)} ${unit}`}
+      />
+      <MaterialByModelTable
+        title="Edge Binding"
+        description="Edge binding usage by model (scaled by model quantity)."
+        rows={lot.edgeBindingByModel}
         models={lot.models}
         formatValue={(value, unit) => `${formatNumber(value)} ${unit}`}
       />

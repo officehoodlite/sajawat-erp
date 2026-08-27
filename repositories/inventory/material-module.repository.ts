@@ -112,18 +112,21 @@ const productDelegates = {
   paint: prisma.paintProduct,
   hardware: prisma.hardwareProduct,
   packing: prisma.packingProduct,
+  edgebinding: prisma.edgeBindingProduct,
 } as const;
 
 const purchaseDelegates = {
   paint: prisma.paintPurchase,
   hardware: prisma.hardwarePurchase,
   packing: prisma.packingPurchase,
+  edgebinding: prisma.edgeBindingPurchase,
 } as const;
 
 const consumptionDelegates = {
   paint: prisma.paintConsumptionLog,
   hardware: prisma.hardwareConsumptionLog,
   packing: prisma.packingConsumptionLog,
+  edgebinding: prisma.edgeBindingConsumptionLog,
 } as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -304,6 +307,24 @@ export class MaterialModuleRepository {
         return mapPurchase(purchase as PurchaseRow);
       }
 
+      if (this.module === "edgebinding") {
+        const product = await tx.edgeBindingProduct.findUnique({ where: { id: data.productId } });
+        if (!product) throw new Error("Product not found");
+        if (!product.isActive) throw new Error("Cannot purchase archived product");
+
+        const purchase = await tx.edgeBindingPurchase.create({
+          data: purchaseData,
+          include: { product: true, supplier: true },
+        });
+
+        await tx.edgeBindingProduct.update({
+          where: { id: data.productId },
+          data: { remainingStock: { increment: data.quantity } },
+        });
+
+        return mapPurchase(purchase as PurchaseRow);
+      }
+
       const product = await tx.packingProduct.findUnique({ where: { id: data.productId } });
       if (!product) throw new Error("Product not found");
       if (!product.isActive) throw new Error("Cannot purchase archived product");
@@ -387,6 +408,9 @@ export class MaterialModuleRepository {
     if (this.module === "hardware") {
       return tx.hardwarePurchase.findUnique({ where: { id }, include });
     }
+    if (this.module === "edgebinding") {
+      return tx.edgeBindingPurchase.findUnique({ where: { id }, include });
+    }
     return tx.packingPurchase.findUnique({ where: { id }, include });
   }
 
@@ -398,6 +422,9 @@ export class MaterialModuleRepository {
     if (this.module === "hardware") {
       return tx.hardwarePurchase.update({ where: { id }, data, include });
     }
+    if (this.module === "edgebinding") {
+      return tx.edgeBindingPurchase.update({ where: { id }, data, include });
+    }
     return tx.packingPurchase.update({ where: { id }, data, include });
   }
 
@@ -408,6 +435,10 @@ export class MaterialModuleRepository {
     }
     if (this.module === "hardware") {
       await tx.hardwarePurchase.delete({ where: { id } });
+      return;
+    }
+    if (this.module === "edgebinding") {
+      await tx.edgeBindingPurchase.delete({ where: { id } });
       return;
     }
     await tx.packingPurchase.delete({ where: { id } });
@@ -426,6 +457,13 @@ export class MaterialModuleRepository {
     }
     if (this.module === "hardware") {
       await tx.hardwareProduct.update({
+        where: { id: productId },
+        data: delta > 0 ? { remainingStock: { increment: amount } } : { remainingStock: { decrement: amount } },
+      });
+      return;
+    }
+    if (this.module === "edgebinding") {
+      await tx.edgeBindingProduct.update({
         where: { id: productId },
         data: delta > 0 ? { remainingStock: { increment: amount } } : { remainingStock: { decrement: amount } },
       });
@@ -541,6 +579,7 @@ const repositories = {
   paint: new MaterialModuleRepository("paint"),
   hardware: new MaterialModuleRepository("hardware"),
   packing: new MaterialModuleRepository("packing"),
+  edgebinding: new MaterialModuleRepository("edgebinding"),
 };
 
 export function getMaterialRepository(module: MaterialModuleType) {

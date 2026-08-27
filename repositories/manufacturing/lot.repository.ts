@@ -23,6 +23,7 @@ const lotInclude = {
       paintEntries: { include: { paintProduct: true } },
       hardwareEntries: { include: { hardwareProduct: true } },
       packingEntries: { include: { packingProduct: true } },
+      edgeBindingEntries: { include: { edgeBindingProduct: true } },
       boardPresets: {
         include: { boardThickness: { include: { board: true } } },
         orderBy: { createdAt: "asc" as const },
@@ -37,6 +38,10 @@ const lotInclude = {
       },
       packingPresets: {
         include: { packingProduct: true },
+        orderBy: { createdAt: "asc" as const },
+      },
+      edgeBindingPresets: {
+        include: { edgeBindingProduct: true },
         orderBy: { createdAt: "asc" as const },
       },
     },
@@ -109,6 +114,13 @@ function mapModel(row: {
     quantity: unknown;
     packingProduct: { name: string; unit: Unit };
   }>;
+  edgeBindingEntries: Array<{
+    id: string;
+    modelId: string;
+    edgeBindingProductId: string;
+    quantity: unknown;
+    edgeBindingProduct: { name: string; unit: Unit };
+  }>;
   boardPresets: Array<{
     boardThicknessId: string;
     length: unknown;
@@ -130,6 +142,11 @@ function mapModel(row: {
     packingProductId: string;
     quantity: unknown;
     packingProduct: { name: string; brand: string | null };
+  }>;
+  edgeBindingPresets: Array<{
+    edgeBindingProductId: string;
+    quantity: unknown;
+    edgeBindingProduct: { name: string; brand: string | null };
   }>;
 }): ModelDto {
   return {
@@ -170,6 +187,14 @@ function mapModel(row: {
       quantity: toNumber(e.quantity),
       unit: e.packingProduct.unit,
     })),
+    edgeBindingEntries: row.edgeBindingEntries.map((e) => ({
+      id: e.id,
+      modelId: e.modelId,
+      edgeBindingProductId: e.edgeBindingProductId,
+      edgeBindingName: e.edgeBindingProduct.name,
+      quantity: toNumber(e.quantity),
+      unit: e.edgeBindingProduct.unit,
+    })),
     boardPresets: row.boardPresets.map((p) => ({
       boardThicknessId: p.boardThicknessId,
       materialName: p.boardThickness.board.materialName,
@@ -192,6 +217,11 @@ function mapModel(row: {
     packingPresets: row.packingPresets.map((p) => ({
       productId: p.packingProductId,
       label: materialLabel(p.packingProduct.name, p.packingProduct.brand),
+      quantity: toNumber(p.quantity),
+    })),
+    edgeBindingPresets: row.edgeBindingPresets.map((p) => ({
+      productId: p.edgeBindingProductId,
+      label: materialLabel(p.edgeBindingProduct.name, p.edgeBindingProduct.brand),
       quantity: toNumber(p.quantity),
     })),
   };

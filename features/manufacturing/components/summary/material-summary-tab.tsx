@@ -63,3 +63,14 @@ export function PackingSummaryTab({ lot }: { lot: LotSummaryDto }) {
     />
   );
 }
+
+export function EdgeBindingSummaryTab({ lot }: { lot: LotSummaryDto }) {
+  return (
+    <MaterialSummaryTab
+      title="Edge Binding Consumption"
+      nameHeader="Edge Binding"
+      rows={lot.edgeBindingConsumption}
+      emptyMessage="No edge binding usage recorded yet."
+    />
+  );
+}

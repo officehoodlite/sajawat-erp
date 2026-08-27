@@ -7,14 +7,15 @@ import {
 } from "@/lib/purchase-integrity";
 import { formatNumber } from "@/utils/format";
 
-export type MaterialType = "paint" | "hardware" | "packing";
+export type MaterialType = "paint" | "hardware" | "packing" | "edgebinding";
 
 type Tx = Prisma.TransactionClient;
 
 async function getMaterialProduct(tx: Tx, type: MaterialType, productId: string) {
   if (type === "paint") return tx.paintProduct.findUnique({ where: { id: productId } });
   if (type === "hardware") return tx.hardwareProduct.findUnique({ where: { id: productId } });
-  return tx.packingProduct.findUnique({ where: { id: productId } });
+  if (type === "packing") return tx.packingProduct.findUnique({ where: { id: productId } });
+  return tx.edgeBindingProduct.findUnique({ where: { id: productId } });
 }
 
 async function updateMaterialRemaining(
@@ -37,8 +38,13 @@ async function updateMaterialRemaining(
         where: { id: productId },
         data: { remainingStock: { decrement: amount } },
       });
-    } else {
+    } else if (type === "packing") {
       await tx.packingProduct.update({
+        where: { id: productId },
+        data: { remainingStock: { decrement: amount } },
+      });
+    } else {
+      await tx.edgeBindingProduct.update({
         where: { id: productId },
         data: { remainingStock: { decrement: amount } },
       });
@@ -56,8 +62,13 @@ async function updateMaterialRemaining(
       where: { id: productId },
       data: { remainingStock: { increment: amount } },
     });
-  } else {
+  } else if (type === "packing") {
     await tx.packingProduct.update({
+      where: { id: productId },
+      data: { remainingStock: { increment: amount } },
+    });
+  } else {
+    await tx.edgeBindingProduct.update({
       where: { id: productId },
       data: { remainingStock: { increment: amount } },
     });
