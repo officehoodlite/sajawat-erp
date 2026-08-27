@@ -7,7 +7,6 @@ import { useTheme } from "next-themes";
 import { navSections } from "@/components/layout/nav-config";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiFetch } from "@/lib/api-client";
 import { useCurrentUser } from "@/features/users/hooks/use-users";
 
@@ -40,8 +39,8 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="sticky top-0 z-20 hidden h-dvh w-[15.5rem] shrink-0 border-r border-sidebar-border bg-sidebar md:flex md:flex-col">
-      <div className="flex h-[3.75rem] items-center gap-3 px-5">
+    <aside className="sticky top-0 z-20 hidden h-dvh min-h-0 w-[15.5rem] shrink-0 border-r border-sidebar-border bg-sidebar md:flex md:flex-col">
+      <div className="flex h-[3.75rem] shrink-0 items-center gap-3 px-5">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-[11px] font-semibold tracking-tight text-primary-foreground">
           SJ
         </div>
@@ -53,8 +52,8 @@ export function Sidebar() {
         </div>
       </div>
 
-      <ScrollArea className="flex-1 px-3 pb-4">
-        <nav className="space-y-6 pt-2">
+      <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-2">
+        <div className="space-y-6">
           {navSections.map((section) => {
             const items = section.items.filter(
               (item) => !("adminOnly" in item && item.adminOnly) || isAdmin
@@ -96,10 +95,10 @@ export function Sidebar() {
             </div>
             );
           })}
-        </nav>
-      </ScrollArea>
+        </div>
+      </nav>
 
-      <div className="mt-auto border-t border-sidebar-border px-3 py-3">
+      <div className="mt-auto shrink-0 border-t border-sidebar-border px-3 py-3">
         <div className="flex items-center justify-between rounded-lg px-1.5 py-1">
           <span className="text-[11px] text-muted-foreground">v0.1.0</span>
           <div className="flex items-center gap-0.5">

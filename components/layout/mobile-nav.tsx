@@ -77,11 +77,11 @@ export function MobileNav() {
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
-          <SheetContent side="left" className="w-[18rem] border-sidebar-border bg-sidebar p-0">
-            <SheetHeader className="border-b border-sidebar-border px-5 py-4 text-left">
+          <SheetContent side="left" className="flex h-full w-[18rem] flex-col gap-0 overflow-hidden border-sidebar-border bg-sidebar p-0">
+            <SheetHeader className="shrink-0 border-b border-sidebar-border px-5 py-4 text-left">
               <SheetTitle className="text-[13px] font-semibold tracking-tight">Menu</SheetTitle>
             </SheetHeader>
-            <nav className="space-y-6 p-3">
+            <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-3">
               {navSections.map((section) => (
                 <div key={section.label} className="space-y-1">
                   <p className="px-2.5 pb-1.5 text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
