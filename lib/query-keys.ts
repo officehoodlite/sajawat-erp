@@ -101,6 +101,7 @@ export const queryKeys = {
   },
   production: {
     all: ["production"] as const,
+    allEntries: ["production", "all"] as const,
     byDate: (date: string) => ["production", "date", date] as const,
     byLot: (lotId: string) => ["production", "lot", lotId] as const,
     byModel: (catalogModelId: string) => ["production", "model", catalogModelId] as const,

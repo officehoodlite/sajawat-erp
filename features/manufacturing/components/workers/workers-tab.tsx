@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { ErpPageSection } from "@/components/shared/erp-page";
 import { Button } from "@/components/ui/button";
@@ -16,15 +16,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { WorkerEntryForm } from "@/features/manufacturing/components/workers/worker-entry-form";
 import { WorkerEntryTable } from "@/features/manufacturing/components/workers/worker-entry-table";
-import { WorkerRatesForm } from "@/features/manufacturing/components/workers/worker-rates-form";
-import { LaborPerQtyTable } from "@/features/manufacturing/components/workers/labor-per-qty-table";
-import { WorkerSummaryTable } from "@/features/manufacturing/components/workers/worker-summary-table";
 import {
   useCreateLotWorkerEntries,
   useDeleteLotWorkerEntry,
   useUpdateLotWorkerEntry,
 } from "@/features/manufacturing/hooks/use-manufacturing";
-import { useCurrentUser } from "@/features/users/hooks/use-users";
 import type { LotSummaryDto, LotWorkerEntryDto } from "@/types/dto";
 import type { CreateLotWorkerEntryInput } from "@/validators/manufacturing";
 
@@ -33,16 +29,29 @@ interface WorkersTabProps {
   readOnly?: boolean;
 }
 
+function uniqueWorkerCount(entries: LotWorkerEntryDto[]) {
+  const names = new Set<string>();
+  for (const entry of entries) {
+    for (const name of entry.workerNames) {
+      const trimmed = name.trim();
+      if (trimmed) names.add(trimmed.toLowerCase());
+    }
+  }
+  return names.size;
+}
+
 export function WorkersTab({ lot, readOnly = false }: WorkersTabProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<LotWorkerEntryDto | null>(null);
   const [deleteEntry, setDeleteEntry] = useState<LotWorkerEntryDto | null>(null);
 
-  const { data: me } = useCurrentUser();
-  const canSeePrices = me?.workerPrices === true;
   const createEntries = useCreateLotWorkerEntries(lot.id);
   const updateEntry = useUpdateLotWorkerEntry(lot.id);
   const deleteEntryMutation = useDeleteLotWorkerEntry(lot.id);
+  const totalWorkers = useMemo(
+    () => uniqueWorkerCount(lot.workerEntries),
+    [lot.workerEntries]
+  );
 
   const handleSubmit = async (entries: CreateLotWorkerEntryInput[]) => {
     if (editingEntry) {
@@ -55,12 +64,9 @@ export function WorkersTab({ lot, readOnly = false }: WorkersTabProps) {
 
   return (
     <div className="space-y-6">
-      {canSeePrices ? (
-        <WorkerRatesForm lotId={lot.id} rates={lot.workerRates} readOnly={readOnly} />
-      ) : null}
-
       <ErpPageSection
         title="Worker Entries"
+        description={`Total workers: ${totalWorkers}`}
         actions={
           !readOnly ? (
             <Button
@@ -86,12 +92,6 @@ export function WorkersTab({ lot, readOnly = false }: WorkersTabProps) {
           onDelete={setDeleteEntry}
         />
       </ErpPageSection>
-
-      {canSeePrices ? (
-        <WorkerSummaryTable entries={lot.workerEntries} rates={lot.workerRates} />
-      ) : null}
-
-      {canSeePrices ? <LaborPerQtyTable lot={lot} readOnly={readOnly} /> : null}
 
       <WorkerEntryForm
         open={formOpen}

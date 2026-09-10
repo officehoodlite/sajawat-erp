@@ -90,6 +90,9 @@ export const updateProductionEntrySchema = z
 
 export const productionListQuerySchema = z.discriminatedUnion("mode", [
   z.object({
+    mode: z.literal("all"),
+  }),
+  z.object({
     mode: z.literal("date"),
     date: workDateSchema,
   }),

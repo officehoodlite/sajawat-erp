@@ -4,12 +4,23 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
-import { ArrowUpDown, Plus } from "lucide-react";
+import { ArrowUpDown, Plus, Trash2 } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { PageToolbar } from "@/components/shared/page-toolbar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ModelStatusBadge } from "@/features/manufacturing/components/model/model-status-badge";
+import { useDeleteModel } from "@/features/manufacturing/hooks/use-manufacturing";
 import {
   getModelStatus,
 } from "@/features/manufacturing/utils/consumption";
@@ -42,10 +53,12 @@ export function ModelTable({
   onAddModel,
 }: ModelTableProps) {
   const router = useRouter();
+  const deleteModel = useDeleteModel(lotId);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [page, setPage] = useState(1);
   const [sorting, setSorting] = useState<SortingState>([{ id: "modelName", desc: false }]);
+  const [deleteTarget, setDeleteTarget] = useState<ModelRow | null>(null);
   const limit = PAGE_SIZE;
 
   const rows: ModelRow[] = useMemo(
@@ -142,6 +155,27 @@ export function ModelTable({
       header: () => <SortHeader label="Status" columnId="status" />,
       cell: ({ row }) => <ModelStatusBadge status={row.original.status} />,
     },
+    ...(!readOnly
+      ? ([
+          {
+            id: "actions",
+            header: "",
+            cell: ({ row }) => (
+              <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setDeleteTarget(row.original)}
+                  aria-label={`Delete ${row.original.modelName}`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ),
+          },
+        ] as ColumnDef<ModelRow>[])
+      : []),
   ];
 
   return (
@@ -192,6 +226,36 @@ export function ModelTable({
           }}
         />
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete model from lot?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes {deleteTarget?.productName} — {deleteTarget?.modelName} from the lot
+              and returns reserved paint, hardware, packing, edge binding, and glass stock to
+              inventory. Board planning rows are removed; actual board stock is unchanged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteModel.isPending}
+              onClick={async () => {
+                if (!deleteTarget) return;
+                try {
+                  await deleteModel.mutateAsync(deleteTarget.id);
+                  setDeleteTarget(null);
+                } catch {
+                  // Toast shown by mutation onError
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

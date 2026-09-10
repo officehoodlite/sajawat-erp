@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { navSections } from "@/components/layout/nav-config";
+import { isNavItemActive, navSections } from "@/components/layout/nav-config";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-client";
@@ -66,8 +66,7 @@ export function Sidebar() {
               </p>
               {items.map((item) => {
                 const Icon = item.icon;
-                const active =
-                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const active = isNavItemActive(pathname, item.href);
                 return (
                   <Link
                     key={item.href}

@@ -15,7 +15,6 @@ import {
   downloadCatalogPresetTemplate,
   parseCatalogPresetImport,
   type CatalogImportedBoard,
-  type CatalogImportedQty,
   type CatalogImportOption,
   type CatalogPresetImportKind,
 } from "@/features/catalog/utils/catalog-preset-import";
@@ -24,53 +23,31 @@ import { toast } from "sonner";
 
 const MATERIALS: { id: CatalogPresetImportKind; label: string }[] = [
   { id: "boards", label: "Boards" },
-  { id: "paint", label: "Paint" },
-  { id: "hardware", label: "Hardware" },
-  { id: "packing", label: "Packing" },
-  { id: "edgebinding", label: "Edge Binding" },
-  { id: "glass", label: "Glass" },
 ];
 
 interface CatalogMaterialsImportMenuProps {
   thicknessOptions: CatalogImportOption[];
-  paintOptions: CatalogImportOption[];
-  hardwareOptions: CatalogImportOption[];
-  packingOptions: CatalogImportOption[];
-  edgeBindingOptions: CatalogImportOption[];
-  glassOptions: CatalogImportOption[];
   onImportBoards: (rows: CatalogImportedBoard[]) => void;
-  onImportQty: (kind: Exclude<CatalogPresetImportKind, "boards">, rows: CatalogImportedQty[]) => void;
 }
 
 export function CatalogMaterialsImportMenu({
   thicknessOptions,
-  paintOptions,
-  hardwareOptions,
-  packingOptions,
-  edgeBindingOptions,
-  glassOptions,
   onImportBoards,
-  onImportQty,
 }: CatalogMaterialsImportMenuProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [pendingKind, setPendingKind] = useState<CatalogPresetImportKind | null>(null);
 
   const optionsFor = (kind: CatalogPresetImportKind) => {
     if (kind === "boards") return thicknessOptions;
-    if (kind === "paint") return paintOptions;
-    if (kind === "hardware") return hardwareOptions;
-    if (kind === "packing") return packingOptions;
-    if (kind === "edgebinding") return edgeBindingOptions;
-    return glassOptions;
+    return [];
   };
 
   const handleUpload = async (kind: CatalogPresetImportKind, file: File) => {
     try {
       const result = await parseCatalogPresetImport(kind, file, optionsFor(kind));
       const imported = kind === "boards" ? result.boards.length : result.qty.length;
-      if (imported > 0) {
-        if (kind === "boards") onImportBoards(result.boards);
-        else onImportQty(kind, result.qty);
+      if (imported > 0 && kind === "boards") {
+        onImportBoards(result.boards);
       }
       if (result.errors.length > 0) {
         const preview = result.errors.slice(0, 5).join("; ");

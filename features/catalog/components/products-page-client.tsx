@@ -369,7 +369,7 @@ export function ProductsPageClient() {
                 }}
               />
               <p className="text-xs text-muted-foreground">
-                Creates Part A, Part B, … for use in Production (max 26).
+                Creates A, B, … for use in Production (max 26).
               </p>
             </div>
             {modelPreview ? (
@@ -379,8 +379,7 @@ export function ProductsPageClient() {
               </p>
             ) : null}
             <p className="text-xs text-muted-foreground">
-              After creating the model, you will set its default boards, paint, hardware,
-              packing, edge binding, and glass on the next page.
+              After creating the model, you will set its default boards on the next page.
             </p>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setModelFormOpen(false)}>

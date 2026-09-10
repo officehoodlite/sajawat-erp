@@ -12,6 +12,7 @@ import {
   useUpdateBoardEntry,
 } from "@/features/manufacturing/hooks/use-manufacturing";
 import { getModelBoardSummary, getModelBoardTotal } from "@/features/manufacturing/utils/consumption";
+import { calcBoardEntrySqft } from "@/utils/board-calculations";
 import type { BoardEntryDto, ModelDto } from "@/types/dto";
 import type { CreateBoardEntryInput } from "@/validators/manufacturing";
 
@@ -46,6 +47,9 @@ export function BoardTab({ lotId, model, readOnly }: BoardTabProps) {
     setFormOpen(true);
   };
 
+  const showingCatalogDefaults =
+    model.boardEntries.length === 0 && model.boardPresets.length > 0;
+
   const openEdit = (entry: BoardEntryDto) => {
     setEditingEntry(entry);
     setFormOpen(true);
@@ -62,10 +66,37 @@ export function BoardTab({ lotId, model, readOnly }: BoardTabProps) {
         </div>
       )}
 
+      {showingCatalogDefaults ? (
+        <p className="text-sm text-muted-foreground">
+          Showing default boards from the product model. Add a board entry to assign a stock lot.
+        </p>
+      ) : null}
       <BoardEntryTable
-        entries={model.boardEntries}
-        readOnly={readOnly}
-        onEdit={readOnly ? undefined : openEdit}
+        entries={
+          model.boardEntries.length > 0
+            ? model.boardEntries
+            : model.boardPresets.map((preset) => {
+                const { sqftPerPiece, totalSqft } = calcBoardEntrySqft(
+                  preset.length,
+                  preset.width,
+                  preset.quantity
+                );
+                return {
+                  id: `preset-${preset.boardThicknessId}-${preset.length}-${preset.width}-${preset.quantity}`,
+                  modelId: model.id,
+                  boardInventoryId: "",
+                  materialName: preset.materialName,
+                  thickness: preset.thickness,
+                  length: preset.length,
+                  width: preset.width,
+                  quantity: preset.quantity,
+                  sqftPerPiece,
+                  totalSqft,
+                };
+              })
+        }
+        readOnly={readOnly || showingCatalogDefaults}
+        onEdit={readOnly || showingCatalogDefaults ? undefined : openEdit}
         onDelete={(id) => deleteEntry.mutate(id)}
       />
 

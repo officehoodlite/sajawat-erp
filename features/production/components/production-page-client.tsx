@@ -53,13 +53,15 @@ import {
 } from "@/types/enums";
 import { formatNumber } from "@/utils/format";
 import { downloadCsv } from "@/lib/csv-download";
+import { formatPartsDisplay } from "@/lib/production-parts";
+import { parseCatalogModelName } from "@/lib/model-name";
 import type {
   CreateProductionEntryInput,
   ProductionListQuery,
   UpdateProductionEntryInput,
 } from "@/validators/production";
 
-type FilterMode = "date" | "lot" | "model";
+type FilterMode = "all" | "date" | "lot" | "model";
 
 function todayInput() {
   return new Date().toISOString().slice(0, 10);
@@ -126,12 +128,12 @@ function InlinePaintProgress({
 
   return (
     <div
-      className="flex min-w-[190px] items-end gap-1"
+      className="flex items-end gap-0.5"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      <label className="space-y-1">
-        <span className="block text-center text-[10px] text-muted-foreground">R</span>
+      <label className="space-y-0.5">
+        <span className="block text-center text-[9px] text-muted-foreground">R</span>
         <Input
           type="number"
           min={0}
@@ -141,13 +143,13 @@ function InlinePaintProgress({
           onChange={(event) => setReady(Number(event.target.value) || 0)}
           onBlur={() => void save()}
           onKeyDown={handleKeyDown}
-          className="h-8 w-14 px-2 text-center"
+          className="h-7 w-11 px-1 text-center text-xs"
           aria-label="Paint Ready"
         />
       </label>
-      <span className="pb-2 text-muted-foreground">/</span>
-      <label className="space-y-1">
-        <span className="block text-center text-[10px] text-muted-foreground">S</span>
+      <span className="pb-1.5 text-muted-foreground">/</span>
+      <label className="space-y-0.5">
+        <span className="block text-center text-[9px] text-muted-foreground">S</span>
         <Input
           type="number"
           min={0}
@@ -157,18 +159,18 @@ function InlinePaintProgress({
           onChange={(event) => setStatus(Number(event.target.value) || 0)}
           onBlur={() => void save()}
           onKeyDown={handleKeyDown}
-          className="h-8 w-14 px-2 text-center"
+          className="h-7 w-11 px-1 text-center text-xs"
           aria-label="Paint Status"
         />
       </label>
-      <span className="pb-2 text-muted-foreground">/</span>
-      <label className="space-y-1">
-        <span className="block text-center text-[10px] text-muted-foreground">B</span>
+      <span className="pb-1.5 text-muted-foreground">/</span>
+      <label className="space-y-0.5">
+        <span className="block text-center text-[9px] text-muted-foreground">B</span>
         <Input
           value={balance}
           readOnly
           tabIndex={-1}
-          className="h-8 w-14 bg-muted/60 px-2 text-center"
+          className="h-7 w-11 bg-muted/60 px-1 text-center text-xs"
           aria-label="Paint Balance"
         />
       </label>
@@ -183,7 +185,6 @@ function InlineDoneProgress({
 }: {
   entry: ProductionEntryDto;
   onSave: (values: {
-    completedReadyQty: number;
     completedOutQty: number;
   }) => Promise<unknown>;
   isPending: boolean;
@@ -204,13 +205,8 @@ function InlineDoneProgress({
   };
 
   const save = async () => {
-    if (ready === entry.completedReadyQty && out === entry.completedOutQty) return;
-    const maxDone = entry.completedReadyQty + entry.paintingStatusQty;
-    if (ready < 0 || ready > maxDone) {
-      toast.error(`Done Ready must be between 0 and ${maxDone}`);
-      reset();
-      return;
-    }
+    if (out === entry.completedOutQty) return;
+    const ready = entry.completedReadyQty;
     if (out < 0 || out > ready) {
       toast.error("Done Out cannot exceed Done Ready");
       reset();
@@ -218,7 +214,7 @@ function InlineDoneProgress({
     }
 
     try {
-      await onSave({ completedReadyQty: ready, completedOutQty: out });
+      await onSave({ completedOutQty: out });
     } catch {
       reset();
     }
@@ -238,28 +234,23 @@ function InlineDoneProgress({
 
   return (
     <div
-      className="flex min-w-[190px] items-end gap-1"
+      className="flex items-end gap-0.5"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      <label className="space-y-1">
-        <span className="block text-center text-[10px] text-muted-foreground">R</span>
+      <label className="space-y-0.5">
+        <span className="block text-center text-[9px] text-muted-foreground">R</span>
         <Input
-          type="number"
-          min={0}
-          max={entry.completedReadyQty + entry.paintingStatusQty}
           value={ready}
-          disabled={isPending}
-          onChange={(event) => setReady(Number(event.target.value) || 0)}
-          onBlur={() => void save()}
-          onKeyDown={handleKeyDown}
-          className="h-8 w-14 px-2 text-center"
+          readOnly
+          tabIndex={-1}
+          className="h-7 w-11 bg-muted/60 px-1 text-center text-xs"
           aria-label="Done Ready"
         />
       </label>
-      <span className="pb-2 text-muted-foreground">/</span>
-      <label className="space-y-1">
-        <span className="block text-center text-[10px] text-muted-foreground">O</span>
+      <span className="pb-1.5 text-muted-foreground">/</span>
+      <label className="space-y-0.5">
+        <span className="block text-center text-[9px] text-muted-foreground">O</span>
         <Input
           type="number"
           min={0}
@@ -269,18 +260,18 @@ function InlineDoneProgress({
           onChange={(event) => setOut(Number(event.target.value) || 0)}
           onBlur={() => void save()}
           onKeyDown={handleKeyDown}
-          className="h-8 w-14 px-2 text-center"
+          className="h-7 w-11 px-1 text-center text-xs"
           aria-label="Done Out"
         />
       </label>
-      <span className="pb-2 text-muted-foreground">/</span>
-      <label className="space-y-1">
-        <span className="block text-center text-[10px] text-muted-foreground">B</span>
+      <span className="pb-1.5 text-muted-foreground">/</span>
+      <label className="space-y-0.5">
+        <span className="block text-center text-[9px] text-muted-foreground">B</span>
         <Input
           value={balance}
           readOnly
           tabIndex={-1}
-          className="h-8 w-14 bg-muted/60 px-2 text-center"
+          className="h-7 w-11 bg-muted/60 px-1 text-center text-xs"
           aria-label="Done Balance"
         />
       </label>
@@ -307,6 +298,7 @@ export function ProductionPageClient() {
   }, [catalogProducts, selectedProductId]);
 
   const listFilter: ProductionListQuery | null = useMemo(() => {
+    if (filterMode === "all") return { mode: "all" };
     if (filterMode === "date") {
       return /^\d{4}-\d{2}-\d{2}$/.test(filterDate)
         ? { mode: "date", date: filterDate }
@@ -370,36 +362,42 @@ export function ProductionPageClient() {
     {
       accessorKey: "lotNumber",
       header: "Lot",
-      cell: ({ row }) => <span className="font-medium">{row.original.lotNumber}</span>,
+      cell: ({ row }) => <span className="font-medium whitespace-nowrap">{row.original.lotNumber}</span>,
     },
     {
       id: "model",
       header: "Model",
       cell: ({ row }) => (
-        <span>
-          {row.original.productName} — {row.original.modelName}
+        <span className="flex max-w-[9rem] flex-col leading-tight">
+          <span className="break-words">({row.original.productName})</span>
+          <span className="whitespace-nowrap">
+            {parseCatalogModelName(row.original.modelName).modelNumber}
+          </span>
         </span>
       ),
     },
     {
       accessorKey: "parts",
       header: "Parts",
-      cell: ({ row }) => row.original.parts.join(", "),
+      cell: ({ row }) => (
+        <span className="max-w-[7rem] break-words">{formatPartsDisplay(row.original.parts)}</span>
+      ),
     },
-    { accessorKey: "details", header: "Details" },
     {
-      id: "quantity",
-      header: "Initial",
-      cell: ({ row }) => formatNumber(row.original.quantity),
+      accessorKey: "details",
+      header: "Details",
+      cell: ({ row }) => (
+        <span className="max-w-[8rem] break-words">{row.original.details ?? "—"}</span>
+      ),
     },
     {
       id: "carpentry",
-      header: "Carpentry",
+      header: "Carp.",
       cell: ({ row }) => formatNumber(row.original.carpentryQty),
     },
     {
       id: "paint",
-      header: "Paint R/S/B",
+      header: "Paint",
       cell: ({ row }) => (
         <InlinePaintProgress
           entry={row.original}
@@ -415,7 +413,7 @@ export function ProductionPageClient() {
     },
     {
       id: "done",
-      header: "Done R/O/B",
+      header: "Done",
       cell: ({ row }) => (
         <InlineDoneProgress
           entry={row.original}
@@ -432,12 +430,16 @@ export function ProductionPageClient() {
     {
       accessorKey: "statusText",
       header: "Status",
-      cell: ({ row }) => row.original.statusText ?? "—",
+      cell: ({ row }) => (
+        <span className="max-w-[7rem] break-words">{row.original.statusText ?? "—"}</span>
+      ),
     },
     {
       accessorKey: "description",
-      header: "Description",
-      cell: ({ row }) => row.original.description ?? "—",
+      header: "Desc",
+      cell: ({ row }) => (
+        <span className="max-w-[8rem] break-words">{row.original.description ?? "—"}</span>
+      ),
     },
     {
       id: "actions",
@@ -447,33 +449,36 @@ export function ProductionPageClient() {
           type="button"
           variant="ghost"
           size="icon-sm"
+          className="h-7 w-7"
           onClick={(e) => {
             e.stopPropagation();
             setDeleteTarget(row.original);
           }}
         >
-          <Trash2 className="h-4 w-4 text-destructive" />
+          <Trash2 className="h-3.5 w-3.5 text-destructive" />
         </Button>
       ),
     },
   ];
 
   const emptyTitle =
-    filterMode === "date"
-      ? "No active entries for this date"
-      : filterMode === "lot"
-        ? selectedLotId
-          ? "No active entries for this lot"
-          : "Select a lot"
-        : selectedCatalogModelId
-          ? "No active entries for this model"
-          : "Select a model";
+    filterMode === "all"
+      ? "No active entries"
+      : filterMode === "date"
+        ? "No active entries for this date"
+        : filterMode === "lot"
+          ? selectedLotId
+            ? "No active entries for this lot"
+            : "Select a lot"
+          : selectedCatalogModelId
+            ? "No active entries for this model"
+            : "Select a model";
 
   return (
     <ErpPage>
       <PageHeader
         title="In-Production"
-        description="Track production progress by date, lot, or catalog model. Completed lines hide when Done Out reaches Initial Qty."
+        description="Track production progress by date, lot, catalog model, or all lots. Completed lines hide when Done Out reaches Initial Qty."
       >
         <Button
           type="button"
@@ -481,12 +486,14 @@ export function ProductionPageClient() {
           disabled={filteredEntries.length === 0}
           onClick={() => {
             const filterLabel =
-              filterMode === "date"
-                ? filterDate
-                : filterMode === "lot"
-                  ? lotsPage?.items.find((lot) => lot.id === selectedLotId)?.lotNumber ?? "lot"
-                  : catalogModels.find((model) => model.id === selectedCatalogModelId)?.modelName ??
-                    "model";
+              filterMode === "all"
+                ? "all"
+                : filterMode === "date"
+                  ? filterDate
+                  : filterMode === "lot"
+                    ? lotsPage?.items.find((lot) => lot.id === selectedLotId)?.lotNumber ?? "lot"
+                    : catalogModels.find((model) => model.id === selectedCatalogModelId)?.modelName ??
+                      "model";
             downloadCsv(`in-production-${filterMode}-${filterLabel}.csv`, [
               [
                 ...(showDateColumn ? ["Date"] : []),
@@ -495,7 +502,6 @@ export function ProductionPageClient() {
                 "Model",
                 "Parts",
                 "Details",
-                "Initial",
                 "Carpentry remaining",
                 "Paint R",
                 "Paint S",
@@ -510,10 +516,9 @@ export function ProductionPageClient() {
                 ...(showDateColumn ? [entry.workDate] : []),
                 entry.lotNumber,
                 entry.productName,
-                entry.modelName,
-                entry.parts.join(", "),
+                parseCatalogModelName(entry.modelName).modelNumber,
+                formatPartsDisplay(entry.parts),
                 entry.details,
-                entry.quantity,
                 entry.carpentryQty,
                 entry.paintingReady,
                 entry.paintingStatusQty,
@@ -549,6 +554,7 @@ export function ProductionPageClient() {
               value={filterMode}
               onValueChange={(v) => setFilterMode((v as FilterMode) ?? "date")}
               items={[
+                { value: "all", label: "All" },
                 { value: "date", label: "Date" },
                 { value: "lot", label: "LOT wise" },
                 { value: "model", label: "Model wise" },
@@ -558,6 +564,7 @@ export function ProductionPageClient() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="date">Date</SelectItem>
                 <SelectItem value="lot">LOT wise</SelectItem>
                 <SelectItem value="model">Model wise</SelectItem>
@@ -720,6 +727,7 @@ export function ProductionPageClient() {
         <DataTable
           columns={columns}
           data={filteredEntries}
+          dense
           emptyTitle={emptyTitle}
           emptyDescription="Create a production entry, or adjust the filter."
           onRowClick={(row) => {

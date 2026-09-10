@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { partLabels } from "@/lib/production-parts";
+import { normalizePart, normalizeParts, partLabels } from "@/lib/production-parts";
 import {
   formatWorkDateInput,
   parseWorkDate,
@@ -67,7 +67,7 @@ function mapEntry(row: EntryRow): ProductionEntryDto {
     catalogModelId: row.manufacturingModel.catalogModelId,
     modelQuantity: row.manufacturingModel.quantity,
     partCount: row.manufacturingModel.partCount,
-    parts: row.parts,
+    parts: row.parts.map(normalizePart),
     details: row.details,
     statusText: row.statusText,
     description: row.description,
@@ -117,8 +117,9 @@ function remainingFromEntries(
 
   for (const entry of entries) {
     for (const part of entry.parts) {
-      if (!usedByPart.has(part)) continue;
-      usedByPart.set(part, (usedByPart.get(part) ?? 0) + entry.carpentryQty);
+      const key = normalizePart(part);
+      if (!usedByPart.has(key)) continue;
+      usedByPart.set(key, (usedByPart.get(key) ?? 0) + entry.carpentryQty);
     }
   }
 
@@ -230,8 +231,8 @@ async function assertPartCapacity(
   carpentryQty: number,
   excludeEntryId?: string
 ) {
-  const uniqueParts = [...new Set(parts)];
-  if (uniqueParts.length !== parts.length) {
+  const uniqueParts = normalizeParts(parts);
+  if (uniqueParts.length !== parts.map(normalizePart).length) {
     throw new Error("Duplicate parts are not allowed");
   }
 
@@ -260,6 +261,14 @@ async function assertPartCapacity(
 
 export class ProductionRepository {
   async list(query: ProductionListQuery): Promise<ProductionEntryDto[]> {
+    if (query.mode === "all") {
+      const rows = await prisma.productionEntry.findMany({
+        include: entryInclude,
+        orderBy: [{ workDate: "desc" }, { createdAt: "desc" }],
+      });
+      return rows.filter(isActiveEntry).map(mapEntry);
+    }
+
     if (query.mode === "date") {
       const { gte, lt } = workDateDayRange(query.date);
       const rows = await prisma.productionEntry.findMany({
@@ -476,7 +485,7 @@ export class ProductionRepository {
       }
 
       const uniqueParts =
-        data.parts !== undefined ? [...new Set(data.parts)] : undefined;
+        data.parts !== undefined ? normalizeParts(data.parts) : undefined;
 
       const row = await tx.productionEntry.update({
         where: { id },

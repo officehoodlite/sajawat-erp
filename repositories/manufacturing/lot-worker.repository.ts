@@ -97,6 +97,43 @@ export class LotWorkerRepository {
 
     await prisma.lotWorkerEntry.delete({ where: { id: entryId } });
   }
+
+  async createEntriesForLots(lotIds: string[], entries: CreateLotWorkerEntryInput[]) {
+    const uniqueLotIds = [...new Set(lotIds)];
+    if (uniqueLotIds.length === 0) throw new Error("Select at least one lot");
+    if (entries.length === 0) throw new Error("Add at least one worker entry");
+
+    await prisma.$transaction(async (tx) => {
+      const lots = await tx.manufacturingLot.findMany({
+        where: { id: { in: uniqueLotIds } },
+        select: { id: true },
+      });
+      if (lots.length !== uniqueLotIds.length) {
+        throw new Error("One or more lots were not found");
+      }
+
+      for (const lotId of uniqueLotIds) {
+        for (const data of entries) {
+          await tx.lotWorkerEntry.create({
+            data: {
+              lotId,
+              type: data.type,
+              workDate: data.workDate,
+              workerNames: data.workerNames.map((n) => n.trim()).filter(Boolean),
+              machinery: data.machinery?.trim() || null,
+              mistri: data.mistri,
+              halfMistri: data.halfMistri,
+              helper: data.helper,
+              hours: data.hours,
+              packQty: data.type === "PACKING" ? (data.packQty ?? null) : null,
+            },
+          });
+        }
+      }
+    });
+
+    return { lotCount: uniqueLotIds.length, entryCount: entries.length };
+  }
 }
 
 export const lotWorkerRepository = new LotWorkerRepository();

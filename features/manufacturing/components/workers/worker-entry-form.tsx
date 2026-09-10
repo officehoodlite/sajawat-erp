@@ -40,6 +40,8 @@ interface WorkerEntryFormProps {
   onSubmit: (entries: CreateLotWorkerEntryInput[]) => Promise<void>;
   isPending?: boolean;
   entry?: LotWorkerEntryDto | null;
+  /** Create-mode submit label (edit mode still uses “Save Changes”). */
+  submitLabel?: string;
 }
 
 const emptyRow = (): CreateLotWorkerEntryInput => ({
@@ -274,6 +276,7 @@ export function WorkerEntryForm({
   onSubmit,
   isPending,
   entry,
+  submitLabel = "Add Entries",
 }: WorkerEntryFormProps) {
   const isEdit = !!entry;
 
@@ -364,7 +367,7 @@ export function WorkerEntryForm({
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : isEdit ? "Save Changes" : "Add Entries"}
+              {isPending ? "Saving..." : isEdit ? "Save Changes" : submitLabel}
             </Button>
           </div>
         </form>

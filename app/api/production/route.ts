@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     if (!parsed.success) {
       return errorResponse(
         parsed.error.issues[0]?.message ??
-          "Provide mode=date&date=, mode=lot&lotId=, or mode=model&catalogModelId=",
+          "Provide mode=all, mode=date&date=, mode=lot&lotId=, or mode=model&catalogModelId=",
         400
       );
     }

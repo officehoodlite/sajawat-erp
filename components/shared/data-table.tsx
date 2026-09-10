@@ -33,6 +33,8 @@ interface DataTableProps<TData, TValue> {
   onRowClick?: (row: TData) => void;
   onRowHover?: (row: TData) => void;
   className?: string;
+  /** Tighter cell padding for wide tables (e.g. In-Production). */
+  dense?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -48,6 +50,7 @@ export function DataTable<TData, TValue>({
   onRowClick,
   onRowHover,
   className,
+  dense = false,
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
@@ -71,14 +74,19 @@ export function DataTable<TData, TValue>({
     <div className={cn("space-y-4", className)}>
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
         <div className="max-h-[calc(100vh-20rem)] overflow-auto">
-          <Table>
+          <Table className={dense ? "text-[12px]" : undefined}>
             <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm [&_tr]:border-b [&_tr]:border-border">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="hover:bg-transparent">
                   {headerGroup.headers.map((header) => (
                     <TableHead
                       key={header.id}
-                      className="h-11 px-4 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase"
+                      className={cn(
+                        "text-[11px] font-semibold text-muted-foreground uppercase",
+                        dense
+                          ? "h-9 px-1.5 tracking-[0.04em] whitespace-normal"
+                          : "h-11 px-4 tracking-[0.08em]"
+                      )}
                     >
                       {header.isPlaceholder
                         ? null
@@ -100,7 +108,14 @@ export function DataTable<TData, TValue>({
                   )}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="px-4 py-3 text-[13px]">
+                    <TableCell
+                      key={cell.id}
+                      className={cn(
+                        dense
+                          ? "px-1.5 py-1.5 text-[12px] whitespace-normal"
+                          : "px-4 py-3 text-[13px]"
+                      )}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

@@ -132,6 +132,11 @@ export const createLotWorkerEntrySchema = lotWorkerEntryBaseSchema.refine(
 
 export const updateLotWorkerEntrySchema = lotWorkerEntryBaseSchema.partial();
 
+export const createBulkLotWorkerEntriesSchema = z.object({
+  lotIds: z.array(z.string().min(1).max(64)).min(1, "Select at least one lot").max(100),
+  entries: z.array(createLotWorkerEntrySchema).min(1, "Add at least one row").max(50),
+});
+
 export const updatePolishLaborSchema = z.object({
   polishLaborPerQty: z
     .union([
@@ -148,4 +153,5 @@ export type CreateLotActualBoardEntryInput = z.infer<typeof createLotActualBoard
 export type UpdateLotWorkerRatesInput = z.infer<typeof updateLotWorkerRatesSchema>;
 export type CreateLotWorkerEntryInput = z.infer<typeof createLotWorkerEntrySchema>;
 export type UpdateLotWorkerEntryInput = z.infer<typeof updateLotWorkerEntrySchema>;
+export type CreateBulkLotWorkerEntriesInput = z.infer<typeof createBulkLotWorkerEntriesSchema>;
 export type UpdatePolishLaborInput = z.infer<typeof updatePolishLaborSchema>;

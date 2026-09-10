@@ -18,6 +18,7 @@ import type {
   CreateBoardEntryInput,
   CreateLotActualBoardEntryInput,
   CreateLotWorkerEntryInput,
+  CreateBulkLotWorkerEntriesInput,
   UpdateLotWorkerEntryInput,
   UpdateLotWorkerRatesInput,
   UpdatePolishLaborInput,
@@ -248,10 +249,12 @@ export function useDeleteModel(lotId: string) {
       apiFetch<LotDetailDto>(`/api/manufacturing/models/${modelId}`, {
         method: "DELETE",
       }),
-    onSuccess: (data) => {
+    onSuccess: (data, modelId) => {
       syncLotCaches(queryClient, data);
+      queryClient.removeQueries({ queryKey: queryKeys.models.detail(modelId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.lots.all });
       invalidateInventory(queryClient, ["paint", "hardware", "packing", "edgebinding", "glass"]);
-      toast.success("Model deleted");
+      toast.success("Model deleted and inventory restored");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -800,6 +803,28 @@ export function useUpdatePolishLabor(lotId: string) {
       syncSummaryCache(queryClient, summary);
       void queryClient.invalidateQueries({ queryKey: queryKeys.lots.detail(lotId) });
       toast.success("Polish labor saved");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useCreateBulkLotWorkerEntries() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateBulkLotWorkerEntriesInput) =>
+      apiFetch<{ lotCount: number; entryCount: number }>("/api/manufacturing/workers/bulk", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (result, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.lots.all });
+      for (const lotId of variables.lotIds) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.lots.summary(lotId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.lots.detail(lotId) });
+      }
+      toast.success(
+        `Copied ${result.entryCount} worker ${result.entryCount === 1 ? "entry" : "entries"} to ${result.lotCount} lots`
+      );
     },
     onError: (error: Error) => toast.error(error.message),
   });

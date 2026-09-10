@@ -26,6 +26,7 @@ type LotLookupResponse = {
 };
 
 function listUrl(filter: ProductionListQuery) {
+  if (filter.mode === "all") return "/api/production?mode=all";
   if (filter.mode === "date") {
     return `/api/production?mode=date&date=${encodeURIComponent(filter.date)}`;
   }
@@ -36,6 +37,7 @@ function listUrl(filter: ProductionListQuery) {
 }
 
 function listQueryKey(filter: ProductionListQuery) {
+  if (filter.mode === "all") return queryKeys.production.allEntries;
   if (filter.mode === "date") return queryKeys.production.byDate(filter.date);
   if (filter.mode === "lot") return queryKeys.production.byLot(filter.lotId);
   return queryKeys.production.byModel(filter.catalogModelId);

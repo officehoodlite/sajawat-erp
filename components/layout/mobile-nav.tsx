@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState } from "react";
-import { navSections } from "@/components/layout/nav-config";
+import { isNavItemActive, navSections } from "@/components/layout/nav-config";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -91,8 +91,7 @@ export function MobileNav() {
                     .filter((item) => !("adminOnly" in item && item.adminOnly) || isAdmin)
                     .map((item) => {
                     const Icon = item.icon;
-                    const active =
-                      pathname === item.href || pathname.startsWith(`${item.href}/`);
+                    const active = isNavItemActive(pathname, item.href);
                     return (
                       <Link
                         key={item.href}

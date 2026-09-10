@@ -1,6 +1,7 @@
 import {
   ClipboardList,
   Factory,
+  HardHat,
   Layers,
   Package,
   Paintbrush,
@@ -18,6 +19,7 @@ export const navSections = [
     label: "Manufacturing",
     items: [
       { href: "/manufacturing", label: "Lots", icon: Factory },
+      { href: "/manufacturing/workers", label: "Workers", icon: HardHat },
       { href: "/production", label: "In-Production", icon: Workflow },
       { href: "/model-summary", label: "Model Summary", icon: ClipboardList },
     ],
@@ -50,3 +52,15 @@ export type NavItem = (typeof navSections)[number]["items"][number];
 
 /** Flat list for callers that only need href matching. */
 export const navItems: NavItem[] = navSections.flatMap((section) => [...section.items]);
+
+/** Longest matching href wins so /manufacturing/workers is not treated as Lots. */
+export function isNavItemActive(pathname: string, href: string) {
+  const matches = pathname === href || pathname.startsWith(`${href}/`);
+  if (!matches) return false;
+  return !navItems.some(
+    (other) =>
+      other.href !== href &&
+      other.href.startsWith(`${href}/`) &&
+      (pathname === other.href || pathname.startsWith(`${other.href}/`))
+  );
+}

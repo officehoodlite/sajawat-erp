@@ -24,7 +24,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  useCatalogMaterialOptions,
   useCatalogProduct,
   useCatalogThicknessOptions,
   useUpdateCatalogProductModel,
@@ -48,24 +47,7 @@ type BoardRow = {
   quantity: number;
 };
 
-type QtyRow = {
-  key: string;
-  productId: string;
-  label: string;
-  quantity: number;
-};
-
 type Option = { id: string; label: string };
-
-type DialogKind = "boards" | "paint" | "hardware" | "packing" | "edgebinding" | "glass";
-
-const QTY_TITLES: Record<Exclude<DialogKind, "boards">, string> = {
-  paint: "Paint",
-  hardware: "Hardware",
-  packing: "Packing",
-  edgebinding: "Edge Binding",
-  glass: "Glass",
-};
 
 function newKey() {
   return crypto.randomUUID();
@@ -89,37 +71,13 @@ export function ProductModelMaterialsClient({
   const [modelSize, setModelSize] = useState("");
   const [partCount, setPartCount] = useState(1);
   const [boardRows, setBoardRows] = useState<BoardRow[]>([]);
-  const [paintRows, setPaintRows] = useState<QtyRow[]>([]);
-  const [hardwareRows, setHardwareRows] = useState<QtyRow[]>([]);
-  const [packingRows, setPackingRows] = useState<QtyRow[]>([]);
-  const [edgeBindingRows, setEdgeBindingRows] = useState<QtyRow[]>([]);
-  const [glassRows, setGlassRows] = useState<QtyRow[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
-  const [dialogKind, setDialogKind] = useState<DialogKind | null>(null);
+  const [boardDialogOpen, setBoardDialogOpen] = useState(false);
   const [editingBoardKey, setEditingBoardKey] = useState<string | null>(null);
-  const [editingQtyKey, setEditingQtyKey] = useState<string | null>(null);
 
   const { data: thicknessOptions = [], isLoading: thicknessLoading } =
     useCatalogThicknessOptions(true);
-  const { data: paintOptions = [], isLoading: paintLoading } = useCatalogMaterialOptions(
-    "paint",
-    true
-  );
-  const { data: hardwareOptions = [], isLoading: hardwareLoading } = useCatalogMaterialOptions(
-    "hardware",
-    true
-  );
-  const { data: packingOptions = [], isLoading: packingLoading } = useCatalogMaterialOptions(
-    "packing",
-    true
-  );
-  const { data: edgeBindingOptions = [], isLoading: edgeBindingLoading } =
-    useCatalogMaterialOptions("edgebinding", true);
-  const { data: glassOptions = [], isLoading: glassLoading } = useCatalogMaterialOptions(
-    "glass",
-    true
-  );
 
   useEffect(() => {
     if (!model || hydrated) return;
@@ -134,46 +92,6 @@ export function ProductModelMaterialsClient({
         label: p.label,
         length: p.length,
         width: p.width,
-        quantity: p.quantity,
-      }))
-    );
-    setPaintRows(
-      model.paintPresets.map((p) => ({
-        key: p.id,
-        productId: p.productId,
-        label: p.label,
-        quantity: p.quantity,
-      }))
-    );
-    setHardwareRows(
-      model.hardwarePresets.map((p) => ({
-        key: p.id,
-        productId: p.productId,
-        label: p.label,
-        quantity: p.quantity,
-      }))
-    );
-    setPackingRows(
-      model.packingPresets.map((p) => ({
-        key: p.id,
-        productId: p.productId,
-        label: p.label,
-        quantity: p.quantity,
-      }))
-    );
-    setEdgeBindingRows(
-      model.edgeBindingPresets.map((p) => ({
-        key: p.id,
-        productId: p.productId,
-        label: p.label,
-        quantity: p.quantity,
-      }))
-    );
-    setGlassRows(
-      model.glassPresets.map((p) => ({
-        key: p.id,
-        productId: p.productId,
-        label: p.label,
         quantity: p.quantity,
       }))
     );
@@ -202,26 +120,11 @@ export function ProductModelMaterialsClient({
           width: row.width,
           quantity: row.quantity,
         })),
-        paintPresets: paintRows.map((row) => ({
-          productId: row.productId,
-          quantity: row.quantity,
-        })),
-        hardwarePresets: hardwareRows.map((row) => ({
-          productId: row.productId,
-          quantity: row.quantity,
-        })),
-        packingPresets: packingRows.map((row) => ({
-          productId: row.productId,
-          quantity: row.quantity,
-        })),
-        edgeBindingPresets: edgeBindingRows.map((row) => ({
-          productId: row.productId,
-          quantity: row.quantity,
-        })),
-        glassPresets: glassRows.map((row) => ({
-          productId: row.productId,
-          quantity: row.quantity,
-        })),
+        paintPresets: [],
+        hardwarePresets: [],
+        packingPresets: [],
+        edgeBindingPresets: [],
+        glassPresets: [],
       });
       router.push(backHref);
     } catch {
@@ -253,77 +156,11 @@ export function ProductModelMaterialsClient({
     );
   }
 
-  const qtyCard = (
-    title: string,
-    rows: QtyRow[],
-    setRows: (rows: QtyRow[]) => void,
-    kind: Exclude<DialogKind, "boards">,
-    loading: boolean
-  ) => (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-2">
-        <CardTitle>{title}</CardTitle>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setEditingQtyKey(null);
-            setDialogKind(kind);
-          }}
-        >
-          <Plus className="mr-1 h-4 w-4" />
-          Add
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No items yet.</p>
-        ) : (
-          rows.map((row) => (
-            <div
-              key={row.key}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{row.label}</p>
-                <p className="text-xs text-muted-foreground">Qty {row.quantity}</p>
-              </div>
-              <div className="flex shrink-0">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => {
-                    setEditingQtyKey(row.key);
-                    setDialogKind(kind);
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => setRows(rows.filter((r) => r.key !== row.key))}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
-  );
-
   return (
     <ErpPage>
       <PageHeader
         title={model.modelName}
-        description={`Default materials for ${product.name}. These items and quantities are pre-filled when the model is added to a lot.`}
+        description={`Default boards for ${product.name}. These sizes copy into a lot when the model is added.`}
       >
         <Button variant="outline" onClick={() => router.push(backHref)}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -382,114 +219,88 @@ export function ProductModelMaterialsClient({
         </ErpPageSection>
 
         <ErpPageSection
-          title="Default materials"
-          description="Add the same material more than once with different sizes or quantities. Values copy into a lot when this model is added."
+          title="Default boards"
+          description="Add the same board more than once with different sizes or quantities. Values copy into a lot when this model is added."
           actions={
             <CatalogMaterialsImportMenu
               thicknessOptions={thicknessOptions}
-              paintOptions={paintOptions}
-              hardwareOptions={hardwareOptions}
-              packingOptions={packingOptions}
-              edgeBindingOptions={edgeBindingOptions}
-              glassOptions={glassOptions}
               onImportBoards={(rows) =>
                 setBoardRows((current) => [
                   ...current,
                   ...rows.map((row) => ({ ...row, key: newKey() })),
                 ])
               }
-              onImportQty={(kind, rows) => {
-                const next = rows.map((row) => ({ ...row, key: newKey() }));
-                if (kind === "paint") setPaintRows((current) => [...current, ...next]);
-                if (kind === "hardware") setHardwareRows((current) => [...current, ...next]);
-                if (kind === "packing") setPackingRows((current) => [...current, ...next]);
-                if (kind === "edgebinding") setEdgeBindingRows((current) => [...current, ...next]);
-                if (kind === "glass") setGlassRows((current) => [...current, ...next]);
-              }}
             />
           }
         >
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader className="flex flex-row items-start justify-between gap-2">
-                <CardTitle>Boards</CardTitle>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingBoardKey(null);
-                    setDialogKind("boards");
-                  }}
-                >
-                  <Plus className="mr-1 h-4 w-4" />
-                  Add
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {thicknessLoading ? (
-                  <p className="text-sm text-muted-foreground">Loading…</p>
-                ) : boardRows.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No boards yet.</p>
-                ) : (
-                  boardRows.map((row) => {
-                    const sqft =
-                      row.length > 0 && row.width > 0 && row.quantity > 0
-                        ? calcBoardEntrySqft(row.length, row.width, row.quantity).totalSqft
-                        : null;
-                    return (
-                      <div
-                        key={row.key}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{row.label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            L {row.length} · W {row.width} · Qty {row.quantity}
-                            {sqft != null ? ` · ${formatSqft(sqft)}` : ""}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => {
-                              setEditingBoardKey(row.key);
-                              setDialogKind("boards");
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() =>
-                              setBoardRows(boardRows.filter((r) => r.key !== row.key))
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+          <Card>
+            <CardHeader className="flex flex-row items-start justify-between gap-2">
+              <CardTitle>Boards</CardTitle>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setEditingBoardKey(null);
+                  setBoardDialogOpen(true);
+                }}
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                Add
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {thicknessLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : boardRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No boards yet.</p>
+              ) : (
+                boardRows.map((row) => {
+                  const sqft =
+                    row.length > 0 && row.width > 0 && row.quantity > 0
+                      ? calcBoardEntrySqft(row.length, row.width, row.quantity).totalSqft
+                      : null;
+                  return (
+                    <div
+                      key={row.key}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{row.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          L {row.length} · W {row.width} · Qty {row.quantity}
+                          {sqft != null ? ` · ${formatSqft(sqft)}` : ""}
+                        </p>
                       </div>
-                    );
-                  })
-                )}
-              </CardContent>
-            </Card>
-            {qtyCard("Paint", paintRows, setPaintRows, "paint", paintLoading)}
-            {qtyCard("Hardware", hardwareRows, setHardwareRows, "hardware", hardwareLoading)}
-            {qtyCard("Packing", packingRows, setPackingRows, "packing", packingLoading)}
-            {qtyCard(
-              "Edge Binding",
-              edgeBindingRows,
-              setEdgeBindingRows,
-              "edgebinding",
-              edgeBindingLoading
-            )}
-            {qtyCard("Glass", glassRows, setGlassRows, "glass", glassLoading)}
-          </div>
+                      <div className="flex shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => {
+                            setEditingBoardKey(row.key);
+                            setBoardDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() =>
+                            setBoardRows(boardRows.filter((r) => r.key !== row.key))
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
         </ErpPageSection>
 
         <div className="flex justify-end gap-2">
@@ -511,12 +322,12 @@ export function ProductModelMaterialsClient({
         </div>
       </form>
 
-      {dialogKind === "boards" ? (
+      {boardDialogOpen ? (
         <BoardPresetDialog
           open
           onOpenChange={(open) => {
             if (!open) {
-              setDialogKind(null);
+              setBoardDialogOpen(false);
               setEditingBoardKey(null);
             }
           }}
@@ -534,65 +345,8 @@ export function ProductModelMaterialsClient({
             } else {
               setBoardRows([...boardRows, ...rows]);
             }
-            setDialogKind(null);
+            setBoardDialogOpen(false);
             setEditingBoardKey(null);
-          }}
-        />
-      ) : null}
-
-      {dialogKind && dialogKind !== "boards" ? (
-        <QtyPresetDialog
-          open
-          title={QTY_TITLES[dialogKind]}
-          options={
-            dialogKind === "paint"
-              ? paintOptions
-              : dialogKind === "hardware"
-                ? hardwareOptions
-                : dialogKind === "packing"
-                  ? packingOptions
-                  : dialogKind === "edgebinding"
-                    ? edgeBindingOptions
-                    : glassOptions
-          }
-          existing={
-            editingQtyKey
-              ? (dialogKind === "paint"
-                  ? paintRows
-                  : dialogKind === "hardware"
-                    ? hardwareRows
-                    : dialogKind === "packing"
-                      ? packingRows
-                      : dialogKind === "edgebinding"
-                        ? edgeBindingRows
-                        : glassRows
-                ).find((r) => r.key === editingQtyKey) ?? null
-              : null
-          }
-          onOpenChange={(open) => {
-            if (!open) {
-              setDialogKind(null);
-              setEditingQtyKey(null);
-            }
-          }}
-          onSave={(rows) => {
-            const apply = (current: QtyRow[]) => {
-              if (editingQtyKey) {
-                const next = rows[0];
-                if (!next) return current;
-                return current.map((r) =>
-                  r.key === editingQtyKey ? { ...next, key: r.key } : r
-                );
-              }
-              return [...current, ...rows];
-            };
-            if (dialogKind === "paint") setPaintRows(apply(paintRows));
-            if (dialogKind === "hardware") setHardwareRows(apply(hardwareRows));
-            if (dialogKind === "packing") setPackingRows(apply(packingRows));
-            if (dialogKind === "edgebinding") setEdgeBindingRows(apply(edgeBindingRows));
-            if (dialogKind === "glass") setGlassRows(apply(glassRows));
-            setDialogKind(null);
-            setEditingQtyKey(null);
           }}
         />
       ) : null}
@@ -751,124 +505,6 @@ function BoardPresetDialog({
                     length: size.length,
                     width: size.width,
                     quantity: size.quantity,
-                  }))
-                )
-              }
-            >
-              {existing ? "Save" : "Add"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function QtyPresetDialog({
-  open,
-  title,
-  options,
-  existing,
-  onOpenChange,
-  onSave,
-}: {
-  open: boolean;
-  title: string;
-  options: Option[];
-  existing: QtyRow | null;
-  onOpenChange: (open: boolean) => void;
-  onSave: (rows: QtyRow[]) => void;
-}) {
-  const [productId, setProductId] = useState(existing?.productId ?? "");
-  const [quantities, setQuantities] = useState(
-    existing ? [existing.quantity] : [0]
-  );
-  const label = options.find((o) => o.id === productId)?.label ?? existing?.label ?? "";
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-xl sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {existing ? `Edit ${title.toLowerCase()}` : `Add ${title.toLowerCase()}`}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label required>Product</Label>
-            <Select
-              value={productId || null}
-              onValueChange={(v) => setProductId(v ?? "")}
-              items={options.map((o) => ({ value: o.id, label: o.label }))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select product" />
-              </SelectTrigger>
-              <SelectContent>
-                {options.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            {quantities.map((qty, index) => (
-              <div key={index} className="flex items-end gap-2">
-                <div className="flex-1 space-y-1">
-                  {index === 0 ? <Label>Qty</Label> : null}
-                  <Input
-                    type="number"
-                    min={0}
-                    step={DECIMAL_INPUT_STEP}
-                    value={numOrEmpty(qty)}
-                    onChange={(e) =>
-                      setQuantities(
-                        quantities.map((q, i) => (i === index ? Number(e.target.value) || 0 : q))
-                      )
-                    }
-                  />
-                </div>
-                {!existing && quantities.length > 1 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="mb-1"
-                    onClick={() => setQuantities(quantities.filter((_, i) => i !== index))}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                ) : null}
-              </div>
-            ))}
-            {!existing ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setQuantities([...quantities, 0])}
-              >
-                <Plus className="mr-1 h-4 w-4" />
-                Add quantity
-              </Button>
-            ) : null}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              disabled={!productId}
-              onClick={() =>
-                onSave(
-                  quantities.map((quantity) => ({
-                    key: newKey(),
-                    productId,
-                    label,
-                    quantity,
                   }))
                 )
               }

@@ -19,6 +19,7 @@ import type { ManufacturingEntryAckDto } from "@/types/dto";
 import type {
   CreateBoardEntryInput,
   CreateLotActualBoardEntryInput,
+  CreateBulkLotWorkerEntriesInput,
   CreateLotWorkerEntryInput,
   CreateModelInput,
   CreateLotInput,
@@ -138,11 +139,6 @@ export class ManufacturingService {
       include: {
         product: true,
         boardPresets: true,
-        paintPresets: true,
-        hardwarePresets: true,
-        packingPresets: true,
-        edgeBindingPresets: true,
-        glassPresets: true,
       },
     });
     if (!catalogModel) throw new Error("Catalog model not found for selected product");
@@ -174,11 +170,18 @@ export class ManufacturingService {
           const length = toNumber(preset.length);
           const width = toNumber(preset.width);
           if (length <= 0 || width <= 0 || preset.quantity <= 0) continue;
-          const inventories = await tx.boardInventory.findMany({
-            where: { boardThicknessId: preset.boardThicknessId },
-            select: { id: true },
-          });
-          if (inventories.length !== 1) continue;
+          const inventory =
+            (await tx.boardInventory.findFirst({
+              where: { boardThicknessId: preset.boardThicknessId, remainingSqft: { gt: 0 } },
+              orderBy: { purchaseDate: "asc" },
+              select: { id: true },
+            })) ??
+            (await tx.boardInventory.findFirst({
+              where: { boardThicknessId: preset.boardThicknessId },
+              orderBy: { purchaseDate: "asc" },
+              select: { id: true },
+            }));
+          if (!inventory) continue;
           const { sqftPerPiece, totalSqft } = calcBoardEntrySqft(
             length,
             width,
@@ -187,7 +190,7 @@ export class ManufacturingService {
           await tx.manufacturingBoardEntry.create({
             data: {
               modelId: model.id,
-              boardInventoryId: inventories[0].id,
+              boardInventoryId: inventory.id,
               length: roundDecimal(length),
               width: roundDecimal(width),
               quantity: preset.quantity,
@@ -197,143 +200,7 @@ export class ManufacturingService {
           });
         }
       }
-      if (catalogModel.paintPresets.length > 0) {
-        await tx.manufacturingModelPaintPreset.createMany({
-          data: catalogModel.paintPresets.map((p) => ({
-            modelId: model.id,
-            paintProductId: p.paintProductId,
-            quantity: p.quantity,
-          })),
-        });
-        for (const preset of catalogModel.paintPresets) {
-          const qty = roundDecimal(toNumber(preset.quantity));
-          if (qty <= 0) continue;
-          const stockQty = materialEntryStockQty("paint", qty, input.quantity);
-          await reserveMaterialStock(tx, "paint", preset.paintProductId, stockQty, "Paint product");
-          await tx.manufacturingPaintEntry.create({
-            data: { modelId: model.id, paintProductId: preset.paintProductId, quantity: qty },
-          });
-        }
-      }
-      if (catalogModel.hardwarePresets.length > 0) {
-        await tx.manufacturingModelHardwarePreset.createMany({
-          data: catalogModel.hardwarePresets.map((p) => ({
-            modelId: model.id,
-            hardwareProductId: p.hardwareProductId,
-            quantity: p.quantity,
-          })),
-        });
-        for (const preset of catalogModel.hardwarePresets) {
-          const qty = roundDecimal(toNumber(preset.quantity));
-          if (qty <= 0) continue;
-          const stockQty = materialEntryStockQty("hardware", qty, input.quantity);
-          await reserveMaterialStock(
-            tx,
-            "hardware",
-            preset.hardwareProductId,
-            stockQty,
-            "Hardware product"
-          );
-          await tx.manufacturingHardwareEntry.create({
-            data: {
-              modelId: model.id,
-              hardwareProductId: preset.hardwareProductId,
-              quantity: qty,
-            },
-          });
-        }
-      }
-      if (catalogModel.packingPresets.length > 0) {
-        await tx.manufacturingModelPackingPreset.createMany({
-          data: catalogModel.packingPresets.map((p) => ({
-            modelId: model.id,
-            packingProductId: p.packingProductId,
-            quantity: p.quantity,
-          })),
-        });
-        for (const preset of catalogModel.packingPresets) {
-          const qty = roundDecimal(toNumber(preset.quantity));
-          if (qty <= 0) continue;
-          const stockQty = materialEntryStockQty("packing", qty, input.quantity);
-          await reserveMaterialStock(
-            tx,
-            "packing",
-            preset.packingProductId,
-            stockQty,
-            "Packing product"
-          );
-          await tx.manufacturingPackingEntry.create({
-            data: {
-              modelId: model.id,
-              packingProductId: preset.packingProductId,
-              quantity: qty,
-            },
-          });
-        }
-      }
-      if (catalogModel.edgeBindingPresets.length > 0) {
-        await tx.manufacturingModelEdgeBindingPreset.createMany({
-          data: catalogModel.edgeBindingPresets.map((p) => ({
-            modelId: model.id,
-            edgeBindingProductId: p.edgeBindingProductId,
-            quantity: p.quantity,
-          })),
-        });
-        for (const preset of catalogModel.edgeBindingPresets) {
-          const qty = roundDecimal(toNumber(preset.quantity));
-          if (qty <= 0) continue;
-          const stockQty = materialEntryStockQty("edgebinding", qty, input.quantity);
-          await reserveMaterialStock(
-            tx,
-            "edgebinding",
-            preset.edgeBindingProductId,
-            stockQty,
-            "Edge binding product"
-          );
-          await tx.manufacturingEdgeBindingEntry.create({
-            data: {
-              modelId: model.id,
-              edgeBindingProductId: preset.edgeBindingProductId,
-              quantity: qty,
-            },
-          });
-        }
-      }
-      if (catalogModel.glassPresets.length > 0) {
-        await tx.manufacturingModelGlassPreset.createMany({
-          data: catalogModel.glassPresets.map((p) => ({
-            modelId: model.id,
-            glassProductId: p.glassProductId,
-            quantity: p.quantity,
-          })),
-        });
-        for (const preset of catalogModel.glassPresets) {
-          const qty = roundDecimal(toNumber(preset.quantity));
-          if (qty <= 0) continue;
-          const stockQty = materialEntryStockQty("glass", qty, input.quantity);
-          await reserveMaterialStock(
-            tx,
-            "glass",
-            preset.glassProductId,
-            stockQty,
-            "Glass product"
-          );
-          await tx.manufacturingGlassEntry.create({
-            data: {
-              modelId: model.id,
-              glassProductId: preset.glassProductId,
-              quantity: qty,
-            },
-          });
-        }
-      }
     });
-
-    await invalidateMaterialOptions("paint");
-    await invalidateMaterialOptions("hardware");
-    await invalidateMaterialOptions("packing");
-    await invalidateMaterialOptions("edgebinding");
-    await invalidateMaterialOptions("glass");
 
     const updated = await prisma.manufacturingLot.findUnique({
       where: { id: lotId },
@@ -378,11 +245,82 @@ export class ManufacturingService {
   async deleteModel(modelId: string) {
     const model = await prisma.manufacturingModel.findUnique({
       where: { id: modelId },
-      include: { lot: true },
+      include: {
+        lot: true,
+        paintEntries: true,
+        hardwareEntries: true,
+        packingEntries: true,
+        edgeBindingEntries: true,
+        glassEntries: true,
+      },
     });
     if (!model) throw new Error("Model not found");
+    if (model.lot.status === "COMPLETED" || model.lot.stockDeducted) {
+      throw new Error("Cannot delete a model from a completed lot");
+    }
 
-    await prisma.manufacturingModel.delete({ where: { id: modelId } });
+    const materialTypesUsed = new Set<MaterialType>();
+
+    await prisma.$transaction(async (tx) => {
+      for (const entry of model.paintEntries) {
+        await releaseMaterialStock(
+          tx,
+          "paint",
+          entry.paintProductId,
+          materialEntryStockQty("paint", toNumber(entry.quantity), model.quantity)
+        );
+        materialTypesUsed.add("paint");
+      }
+      for (const entry of model.hardwareEntries) {
+        await releaseMaterialStock(
+          tx,
+          "hardware",
+          entry.hardwareProductId,
+          materialEntryStockQty("hardware", toNumber(entry.quantity), model.quantity)
+        );
+        materialTypesUsed.add("hardware");
+      }
+      for (const entry of model.packingEntries) {
+        await releaseMaterialStock(
+          tx,
+          "packing",
+          entry.packingProductId,
+          materialEntryStockQty("packing", toNumber(entry.quantity), model.quantity)
+        );
+        materialTypesUsed.add("packing");
+      }
+      for (const entry of model.edgeBindingEntries) {
+        await releaseMaterialStock(
+          tx,
+          "edgebinding",
+          entry.edgeBindingProductId,
+          materialEntryStockQty("edgebinding", toNumber(entry.quantity), model.quantity)
+        );
+        materialTypesUsed.add("edgebinding");
+      }
+      for (const entry of model.glassEntries) {
+        await releaseMaterialStock(
+          tx,
+          "glass",
+          entry.glassProductId,
+          materialEntryStockQty("glass", toNumber(entry.quantity), model.quantity)
+        );
+        materialTypesUsed.add("glass");
+      }
+
+      // Consumption logs use Restrict FK — clear any leftover rows before delete.
+      await tx.paintConsumptionLog.deleteMany({ where: { modelId } });
+      await tx.hardwareConsumptionLog.deleteMany({ where: { modelId } });
+      await tx.packingConsumptionLog.deleteMany({ where: { modelId } });
+      await tx.edgeBindingConsumptionLog.deleteMany({ where: { modelId } });
+      await tx.glassConsumptionLog.deleteMany({ where: { modelId } });
+
+      await tx.manufacturingModel.delete({ where: { id: modelId } });
+    });
+
+    for (const type of materialTypesUsed) {
+      await invalidateMaterialOptions(type);
+    }
 
     const updated = await prisma.manufacturingLot.findUnique({
       where: { id: model.lotId },
@@ -608,6 +546,10 @@ export class ManufacturingService {
     const summary = await findLotSummaryById(lotId);
     if (!summary) throw new Error("Lot not found");
     return summary;
+  }
+
+  async createLotWorkerEntriesForLots(input: CreateBulkLotWorkerEntriesInput) {
+    return lotWorkerRepository.createEntriesForLots(input.lotIds, input.entries);
   }
 
   async updateLotWorkerEntry(
