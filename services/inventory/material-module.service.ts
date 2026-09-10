@@ -2,9 +2,11 @@ import { CACHE_KEYS, cacheDel, cacheGet, cacheSet } from "@/lib/redis";
 import { getMaterialRepository } from "@/repositories/inventory/material-module.repository";
 import type { MaterialModuleType } from "@/types/enums";
 import type {
+  CreateMaterialFamilyInput,
   CreateMaterialProductInput,
   CreateMaterialPurchaseInput,
   MaterialListQuery,
+  UpdateMaterialFamilyInput,
   UpdateMaterialProductInput,
   UpdateMaterialPurchaseInput,
 } from "@/validators/inventory";
@@ -26,6 +28,24 @@ export class MaterialModuleService {
 
   private async invalidateOptionsCache() {
     await cacheDel(OPTIONS_CACHE_KEYS[this.module]);
+  }
+
+  getFamilies(query: MaterialListQuery) {
+    return this.repo().findFamilies(query);
+  }
+
+  async createFamily(data: CreateMaterialFamilyInput) {
+    return this.repo().createFamily(data);
+  }
+
+  async updateFamily(id: string, data: UpdateMaterialFamilyInput) {
+    const family = await this.repo().updateFamily(id, data);
+    await this.invalidateOptionsCache();
+    return family;
+  }
+
+  async deleteFamily(id: string) {
+    await this.repo().deleteFamily(id);
   }
 
   getProducts(query: MaterialListQuery) {
@@ -52,6 +72,11 @@ export class MaterialModuleService {
     const product = await this.repo().archiveProduct(id);
     await this.invalidateOptionsCache();
     return product;
+  }
+
+  async deleteProduct(id: string) {
+    await this.repo().deleteProduct(id);
+    await this.invalidateOptionsCache();
   }
 
   getStock() {

@@ -37,8 +37,10 @@ export const queryKeys = {
   paint: {
     all: ["paint"] as const,
     options: ["paint", "options"] as const,
-    products: (page: number, limit: number, search: string) =>
-      ["paint", "products", page, limit, search] as const,
+    families: (page: number, limit: number, search: string) =>
+      ["paint", "families", page, limit, search] as const,
+    products: (page: number, limit: number, search: string, familyId?: string) =>
+      ["paint", "products", page, limit, search, familyId] as const,
     stock: ["paint", "stock"] as const,
     purchases: (page: number, limit: number, search: string, productId?: string) =>
       ["paint", "purchases", page, limit, search, productId] as const,
@@ -48,8 +50,10 @@ export const queryKeys = {
   hardware: {
     all: ["hardware"] as const,
     options: ["hardware", "options"] as const,
-    products: (page: number, limit: number, search: string) =>
-      ["hardware", "products", page, limit, search] as const,
+    families: (page: number, limit: number, search: string) =>
+      ["hardware", "families", page, limit, search] as const,
+    products: (page: number, limit: number, search: string, familyId?: string) =>
+      ["hardware", "products", page, limit, search, familyId] as const,
     stock: ["hardware", "stock"] as const,
     purchases: (page: number, limit: number, search: string, productId?: string) =>
       ["hardware", "purchases", page, limit, search, productId] as const,
@@ -59,8 +63,10 @@ export const queryKeys = {
   packing: {
     all: ["packing"] as const,
     options: ["packing", "options"] as const,
-    products: (page: number, limit: number, search: string) =>
-      ["packing", "products", page, limit, search] as const,
+    families: (page: number, limit: number, search: string) =>
+      ["packing", "families", page, limit, search] as const,
+    products: (page: number, limit: number, search: string, familyId?: string) =>
+      ["packing", "products", page, limit, search, familyId] as const,
     stock: ["packing", "stock"] as const,
     purchases: (page: number, limit: number, search: string, productId?: string) =>
       ["packing", "purchases", page, limit, search, productId] as const,
@@ -70,8 +76,10 @@ export const queryKeys = {
   edgebinding: {
     all: ["edgebinding"] as const,
     options: ["edgebinding", "options"] as const,
-    products: (page: number, limit: number, search: string) =>
-      ["edgebinding", "products", page, limit, search] as const,
+    families: (page: number, limit: number, search: string) =>
+      ["edgebinding", "families", page, limit, search] as const,
+    products: (page: number, limit: number, search: string, familyId?: string) =>
+      ["edgebinding", "products", page, limit, search, familyId] as const,
     stock: ["edgebinding", "stock"] as const,
     purchases: (page: number, limit: number, search: string, productId?: string) =>
       ["edgebinding", "purchases", page, limit, search, productId] as const,
@@ -81,8 +89,10 @@ export const queryKeys = {
   glass: {
     all: ["glass"] as const,
     options: ["glass", "options"] as const,
-    products: (page: number, limit: number, search: string) =>
-      ["glass", "products", page, limit, search] as const,
+    families: (page: number, limit: number, search: string) =>
+      ["glass", "families", page, limit, search] as const,
+    products: (page: number, limit: number, search: string, familyId?: string) =>
+      ["glass", "products", page, limit, search, familyId] as const,
     stock: ["glass", "stock"] as const,
     purchases: (page: number, limit: number, search: string, productId?: string) =>
       ["glass", "purchases", page, limit, search, productId] as const,

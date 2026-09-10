@@ -6,7 +6,7 @@ export const LOT_STATUS = {
 
 export type LotStatus = (typeof LOT_STATUS)[keyof typeof LOT_STATUS];
 
-export const UNITS = ["PCS", "KG", "LTR", "ML", "MTR", "SQFT", "BOX", "ROLL", "SHEET"] as const;
+export const UNITS = ["PCS", "KG", "LTR", "ML", "MTR", "SQFT", "FEET", "SET", "BOX", "ROLL", "SHEET"] as const;
 export type Unit = (typeof UNITS)[number];
 
 export const LOT_STATUS_LABELS: Record<LotStatus, string> = {
@@ -44,6 +44,8 @@ export const UNIT_LABELS: Record<Unit, string> = {
   ML: "ml",
   MTR: "Mtr",
   SQFT: "SqFt",
+  FEET: "Feet",
+  SET: "Set",
   BOX: "Box",
   ROLL: "Roll",
   SHEET: "Sheet",

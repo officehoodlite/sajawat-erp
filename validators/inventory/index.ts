@@ -82,7 +82,14 @@ export const updateBoardInventorySchema = z.object({
   purchaseSqft: coercedPositiveNumber.optional(),
 });
 
+export const createMaterialFamilySchema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+});
+
+export const updateMaterialFamilySchema = createMaterialFamilySchema;
+
 export const createMaterialProductSchema = z.object({
+  familyId: z.string().min(1).max(64),
   name: z.string().min(1, "Name is required").max(200),
   unit: unitSchema,
 });
@@ -174,6 +181,7 @@ export const materialListQuerySchema = z.object({
   limit: coercedPositiveInt.max(100).optional().default(15),
   search: z.string().max(200).optional().default(""),
   productId: z.string().max(64).optional(),
+  familyId: z.string().max(64).optional(),
   activeOnly: z
     .enum(["true", "false"])
     .optional()
@@ -186,6 +194,8 @@ export type UpdateBoardInput = z.infer<typeof updateBoardSchema>;
 export type CreateBoardThicknessInput = z.infer<typeof createBoardThicknessSchema>;
 export type UpdateBoardThicknessInput = z.infer<typeof updateBoardThicknessSchema>;
 export type CreateBoardInventoryInput = z.infer<typeof createBoardInventorySchema>;
+export type CreateMaterialFamilyInput = z.infer<typeof createMaterialFamilySchema>;
+export type UpdateMaterialFamilyInput = z.infer<typeof updateMaterialFamilySchema>;
 export type CreateMaterialProductInput = z.infer<typeof createMaterialProductSchema>;
 export type UpdateMaterialProductInput = z.infer<typeof updateMaterialProductSchema>;
 export type CreateMaterialPurchaseInput = z.infer<typeof createMaterialPurchaseSchema>;

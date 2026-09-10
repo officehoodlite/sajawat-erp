@@ -92,6 +92,11 @@ async function clearCatalogData() {
   await prisma.edgeBindingProduct.deleteMany();
   await prisma.glassPurchase.deleteMany();
   await prisma.glassProduct.deleteMany();
+  await prisma.paintFamily.deleteMany();
+  await prisma.hardwareFamily.deleteMany();
+  await prisma.packingFamily.deleteMany();
+  await prisma.edgeBindingFamily.deleteMany();
+  await prisma.glassFamily.deleteMany();
   await prisma.supplier.deleteMany();
 }
 
@@ -127,7 +132,10 @@ async function seedProducts(
     const invoice = `SEED-${model.toUpperCase()}-${String(index + 1).padStart(3, "0")}`;
 
     if (model === "paint") {
-      const product = await prisma.paintProduct.create({ data });
+      const family = await prisma.paintFamily.create({ data: { name: item.name } });
+      const product = await prisma.paintProduct.create({
+        data: { ...data, familyId: family.id },
+      });
       await prisma.paintPurchase.create({
         data: {
           productId: product.id,
@@ -140,7 +148,10 @@ async function seedProducts(
         },
       });
     } else if (model === "hardware") {
-      const product = await prisma.hardwareProduct.create({ data });
+      const family = await prisma.hardwareFamily.create({ data: { name: item.name } });
+      const product = await prisma.hardwareProduct.create({
+        data: { ...data, familyId: family.id },
+      });
       await prisma.hardwarePurchase.create({
         data: {
           productId: product.id,
@@ -153,7 +164,10 @@ async function seedProducts(
         },
       });
     } else if (model === "edgebinding") {
-      const product = await prisma.edgeBindingProduct.create({ data });
+      const family = await prisma.edgeBindingFamily.create({ data: { name: item.name } });
+      const product = await prisma.edgeBindingProduct.create({
+        data: { ...data, familyId: family.id },
+      });
       await prisma.edgeBindingPurchase.create({
         data: {
           productId: product.id,
@@ -165,7 +179,10 @@ async function seedProducts(
         },
       });
     } else if (model === "glass") {
-      const product = await prisma.glassProduct.create({ data });
+      const family = await prisma.glassFamily.create({ data: { name: item.name } });
+      const product = await prisma.glassProduct.create({
+        data: { ...data, familyId: family.id },
+      });
       await prisma.glassPurchase.create({
         data: {
           productId: product.id,
@@ -177,7 +194,10 @@ async function seedProducts(
         },
       });
     } else {
-      const product = await prisma.packingProduct.create({ data });
+      const family = await prisma.packingFamily.create({ data: { name: item.name } });
+      const product = await prisma.packingProduct.create({
+        data: { ...data, familyId: family.id },
+      });
       await prisma.packingPurchase.create({
         data: {
           productId: product.id,

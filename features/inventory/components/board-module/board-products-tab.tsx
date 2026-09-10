@@ -37,6 +37,7 @@ import {
   useBoardThicknesses,
   useCreateBoardMaterial,
   useCreateBoardThickness,
+  useDeleteBoardMaterial,
   useDeleteBoardThickness,
   useUpdateBoardMaterial,
   useUpdateBoardThickness,
@@ -53,6 +54,7 @@ export function BoardProductsTab() {
   const { data, isLoading } = useBoardMaterials(page, limit, debouncedSearch);
   const createMaterial = useCreateBoardMaterial();
   const updateMaterial = useUpdateBoardMaterial();
+  const deleteMaterial = useDeleteBoardMaterial();
   const createThickness = useCreateBoardThickness();
   const updateThickness = useUpdateBoardThickness();
   const deleteThickness = useDeleteBoardThickness();
@@ -64,6 +66,7 @@ export function BoardProductsTab() {
   const [thicknessOpen, setThicknessOpen] = useState(false);
   const [editingThickness, setEditingThickness] = useState<BoardThicknessDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BoardThicknessDto | null>(null);
+  const [deleteMaterialTarget, setDeleteMaterialTarget] = useState<BoardDto | null>(null);
   const [thicknessValue, setThicknessValue] = useState("");
 
   const { data: thicknesses, isLoading: thicknessesLoading } = useBoardThicknesses(
@@ -111,6 +114,16 @@ export function BoardProductsTab() {
             }}
           >
             <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteMaterialTarget(row.original);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
@@ -194,12 +207,7 @@ export function BoardProductsTab() {
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      disabled={t.remainingSqft > 0}
-                      title={
-                        t.remainingSqft > 0
-                          ? "Cannot delete thickness with remaining stock"
-                          : "Delete thickness"
-                      }
+                      title="Delete thickness"
                       onClick={() => setDeleteTarget(t)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -327,7 +335,7 @@ export function BoardProductsTab() {
             <AlertDialogTitle>Delete thickness?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget
-                ? `This will permanently delete ${deleteTarget.thickness}. You can only delete thicknesses with no remaining stock.`
+                ? `This will permanently delete ${deleteTarget.thickness}. It can only be deleted if it has no purchases and is not used on a model or lot.`
                 : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -342,6 +350,33 @@ export function BoardProductsTab() {
                   boardId: selectedBoard.id,
                 });
                 setDeleteTarget(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteMaterialTarget} onOpenChange={() => setDeleteMaterialTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete material?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteMaterialTarget
+                ? `This will permanently delete ${deleteMaterialTarget.materialName}. Delete all thicknesses under it first.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMaterial.isPending}
+              onClick={async () => {
+                if (!deleteMaterialTarget) return;
+                await deleteMaterial.mutateAsync(deleteMaterialTarget.id);
+                if (selectedBoard?.id === deleteMaterialTarget.id) setSelectedBoard(null);
+                setDeleteMaterialTarget(null);
               }}
             >
               Delete

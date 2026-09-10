@@ -134,6 +134,18 @@ export function useUpdateBoardMaterial() {
   });
 }
 
+export function useDeleteBoardMaterial() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/inventory/boards/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      invalidateBoardMaterials(queryClient);
+      toast.success("Material deleted");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useCreateBoardThickness() {
   const queryClient = useQueryClient();
   return useMutation({

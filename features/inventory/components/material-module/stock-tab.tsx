@@ -39,7 +39,7 @@ export function StockTab({ type }: StockTabProps) {
   );
 
   const columns: ColumnDef<MaterialStockDto>[] = [
-    { accessorKey: "name", header: "Product" },
+    { accessorKey: "displayName", header: "Product" },
     {
       accessorKey: "brand",
       header: "Brand",
@@ -74,7 +74,7 @@ export function StockTab({ type }: StockTabProps) {
     downloadCsv(`${MATERIAL_MODULE_LABELS[type]}-stock.csv`, [
       ["Product", "Brand", "Unit", "Remaining", "Status"],
       ...(data ?? []).map((row) => [
-        row.name,
+        row.displayName,
         row.brand ?? "",
         UNIT_LABELS[row.unit],
         row.remainingStock,

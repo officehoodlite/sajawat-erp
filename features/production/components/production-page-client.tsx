@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable } from "@/components/shared/data-table";
 import { ErpPage, ErpPageSection } from "@/components/shared/erp-page";
@@ -52,6 +52,7 @@ import {
   type ProductionStage,
 } from "@/types/enums";
 import { formatNumber } from "@/utils/format";
+import { downloadCsv } from "@/lib/csv-download";
 import type {
   CreateProductionEntryInput,
   ProductionListQuery,
@@ -471,9 +472,64 @@ export function ProductionPageClient() {
   return (
     <ErpPage>
       <PageHeader
-        title="Production"
+        title="In-Production"
         description="Track production progress by date, lot, or catalog model. Completed lines hide when Done Out reaches Initial Qty."
       >
+        <Button
+          type="button"
+          variant="outline"
+          disabled={filteredEntries.length === 0}
+          onClick={() => {
+            const filterLabel =
+              filterMode === "date"
+                ? filterDate
+                : filterMode === "lot"
+                  ? lotsPage?.items.find((lot) => lot.id === selectedLotId)?.lotNumber ?? "lot"
+                  : catalogModels.find((model) => model.id === selectedCatalogModelId)?.modelName ??
+                    "model";
+            downloadCsv(`in-production-${filterMode}-${filterLabel}.csv`, [
+              [
+                ...(showDateColumn ? ["Date"] : []),
+                "Lot",
+                "Product",
+                "Model",
+                "Parts",
+                "Details",
+                "Initial",
+                "Carpentry remaining",
+                "Paint R",
+                "Paint S",
+                "Paint B",
+                "Done R",
+                "Done O",
+                "Done B",
+                "Status",
+                "Description",
+              ],
+              ...filteredEntries.map((entry) => [
+                ...(showDateColumn ? [entry.workDate] : []),
+                entry.lotNumber,
+                entry.productName,
+                entry.modelName,
+                entry.parts.join(", "),
+                entry.details,
+                entry.quantity,
+                entry.carpentryQty,
+                entry.paintingReady,
+                entry.paintingStatusQty,
+                entry.paintingBalance,
+                entry.completedReady,
+                entry.completedOutQty,
+                entry.completedBalance,
+                entry.statusText ?? "",
+                entry.description ?? "",
+              ]),
+            ]);
+          }}
+        >
+          <Download className="h-4 w-4" />
+          Export
+        </Button>
         <Button
           onClick={() => {
             setEditing(null);
@@ -485,7 +541,7 @@ export function ProductionPageClient() {
         </Button>
       </PageHeader>
 
-      <ErpPageSection title="Production entries">
+      <ErpPageSection title="In-Production entries">
         <div className="mb-4 grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
             <Label required>Filter</Label>

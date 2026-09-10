@@ -15,9 +15,11 @@ import { requireSession } from "@/lib/require-session";
 import { getMaterialModuleService } from "@/services/inventory/material-module.service";
 import type { MaterialModuleType } from "@/types/enums";
 import {
+  createMaterialFamilySchema,
   createMaterialProductSchema,
   createMaterialPurchaseSchema,
   materialListQuerySchema,
+  updateMaterialFamilySchema,
   updateMaterialProductSchema,
   updateMaterialPurchaseSchema,
 } from "@/validators/inventory";
@@ -29,6 +31,7 @@ function parseListQuery(request: NextRequest) {
     limit: sp.get("limit") ?? 10,
     search: sp.get("search") ?? "",
     productId: sp.get("productId") ?? undefined,
+    familyId: sp.get("familyId") ?? undefined,
     activeOnly: sp.get("activeOnly") ?? undefined,
   });
 }
@@ -59,6 +62,63 @@ export function createMaterialModuleHandlers(module: MaterialModuleType) {
   const base = `/api/inventory/${module}`;
 
   return {
+    families: {
+      GET: async (request: NextRequest) => {
+        try {
+          const session = await guardSession();
+          if (!session.ok) return session.response;
+          const query = parseListQuery(request);
+          const data = await service.getFamilies(query);
+          return successResponse(data);
+        } catch (error) {
+          return await caughtErrorResponse(error, "Failed to fetch names", 500);
+        }
+      },
+      POST: async (request: NextRequest) => {
+        try {
+          const session = await guardSession();
+          if (!session.ok) return session.response;
+          const body = await parseJsonBody(request, DEFAULT_BODY_LIMIT);
+          if (!body.ok) return body.response;
+          const parsed = createMaterialFamilySchema.safeParse(body.data);
+          if (!parsed.success) {
+            return errorResponse("Validation failed", 400, parsed.error.flatten());
+          }
+          const family = await service.createFamily(parsed.data);
+          return successResponse(family, 201);
+        } catch (error) {
+          return await caughtErrorResponse(error, "Failed to create name", 400);
+        }
+      },
+    },
+    familyById: {
+      PUT: async (request: NextRequest, id: string) => {
+        try {
+          const session = await guardSession();
+          if (!session.ok) return session.response;
+          const body = await parseJsonBody(request, DEFAULT_BODY_LIMIT);
+          if (!body.ok) return body.response;
+          const parsed = updateMaterialFamilySchema.safeParse(body.data);
+          if (!parsed.success) {
+            return errorResponse("Validation failed", 400, parsed.error.flatten());
+          }
+          const family = await service.updateFamily(id, parsed.data);
+          return successResponse(family);
+        } catch (error) {
+          return await caughtErrorResponse(error, "Failed to update name", 400);
+        }
+      },
+      DELETE: async (_request: NextRequest, id: string) => {
+        try {
+          const session = await guardSession();
+          if (!session.ok) return session.response;
+          await service.deleteFamily(id);
+          return successResponse({ success: true });
+        } catch (error) {
+          return await caughtErrorResponse(error, "Failed to delete name", 400);
+        }
+      },
+    },
     products: {
       GET: async (request: NextRequest) => {
         try {
@@ -124,6 +184,16 @@ export function createMaterialModuleHandlers(module: MaterialModuleType) {
           return successResponse(product);
         } catch (error) {
           return await caughtErrorResponse(error, "Failed to archive product", 400);
+        }
+      },
+      DELETE: async (_request: NextRequest, id: string) => {
+        try {
+          const session = await guardSession();
+          if (!session.ok) return session.response;
+          await service.deleteProduct(id);
+          return successResponse({ success: true });
+        } catch (error) {
+          return await caughtErrorResponse(error, "Failed to delete product", 400);
         }
       },
     },

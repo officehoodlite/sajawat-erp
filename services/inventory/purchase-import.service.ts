@@ -65,8 +65,30 @@ async function resolveBoardThicknessId(material: string, thickness: string, row:
   return matches[0].id;
 }
 
+function splitFamilyAndItem(raw: string) {
+  for (const sep of [" — ", " – ", " / ", " | "]) {
+    const index = raw.indexOf(sep);
+    if (index > 0) {
+      return { family: raw.slice(0, index).trim(), item: raw.slice(index + sep.length).trim() };
+    }
+  }
+  return null;
+}
+
 async function resolveMaterialProductId(module: MaterialModuleType, name: string, row: number) {
-  const where = { name: { equals: name.trim(), mode: "insensitive" as const } };
+  const trimmed = name.trim();
+  const parts = splitFamilyAndItem(trimmed);
+  const where = parts
+    ? {
+        name: { equals: parts.item, mode: "insensitive" as const },
+        family: { name: { equals: parts.family, mode: "insensitive" as const } },
+      }
+    : {
+        OR: [
+          { name: { equals: trimmed, mode: "insensitive" as const } },
+          { family: { name: { equals: trimmed, mode: "insensitive" as const } } },
+        ],
+      };
   const matches =
     module === "paint"
       ? await prisma.paintProduct.findMany({ where, select: { id: true } })
@@ -77,8 +99,8 @@ async function resolveMaterialProductId(module: MaterialModuleType, name: string
           : module === "glass"
             ? await prisma.glassProduct.findMany({ where, select: { id: true } })
             : await prisma.packingProduct.findMany({ where, select: { id: true } });
-  if (matches.length === 0) throw new Error(`Row ${row}: unknown product "${name.trim()}"`);
-  if (matches.length > 1) throw new Error(`Row ${row}: product "${name.trim()}" is ambiguous`);
+  if (matches.length === 0) throw new Error(`Row ${row}: unknown product "${trimmed}"`);
+  if (matches.length > 1) throw new Error(`Row ${row}: product "${trimmed}" is ambiguous`);
   return matches[0].id;
 }
 

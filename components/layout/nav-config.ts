@@ -18,7 +18,7 @@ export const navSections = [
     label: "Manufacturing",
     items: [
       { href: "/manufacturing", label: "Lots", icon: Factory },
-      { href: "/production", label: "Production", icon: Workflow },
+      { href: "/production", label: "In-Production", icon: Workflow },
       { href: "/model-summary", label: "Model Summary", icon: ClipboardList },
     ],
   },

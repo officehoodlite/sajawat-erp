@@ -1,9 +1,18 @@
 import type { MaterialModuleType, Unit } from "@/types/enums";
 import type { PaginatedResponse } from "@/types/dto";
 
-export interface MaterialProductDto {
+export interface MaterialFamilyDto {
   id: string;
   name: string;
+  productCount: number;
+}
+
+export interface MaterialProductDto {
+  id: string;
+  familyId: string;
+  familyName: string;
+  name: string;
+  displayName: string;
   brand: string | null;
   unit: Unit;
   description: string | null;
@@ -16,6 +25,7 @@ export interface MaterialProductDto {
 export interface MaterialStockDto {
   id: string;
   name: string;
+  displayName: string;
   brand: string | null;
   unit: Unit;
   remainingStock: number;
@@ -61,6 +71,7 @@ export interface MaterialOptionDto {
   unit: Unit;
 }
 
+export type MaterialFamiliesResponse = PaginatedResponse<MaterialFamilyDto>;
 export type MaterialProductsResponse = PaginatedResponse<MaterialProductDto>;
 export type MaterialPurchasesResponse = PaginatedResponse<MaterialPurchaseDto>;
 export type MaterialConsumptionResponse = PaginatedResponse<MaterialConsumptionDto>;

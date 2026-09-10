@@ -28,6 +28,7 @@ import type { MaterialProductDto } from "@/types/material-module";
 
 interface ProductFormDialogProps {
   type: MaterialModuleType;
+  familyId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product?: MaterialProductDto | null;
@@ -37,6 +38,7 @@ interface ProductFormDialogProps {
 
 export function ProductFormDialog({
   type,
+  familyId,
   open,
   onOpenChange,
   product,
@@ -47,6 +49,7 @@ export function ProductFormDialog({
     resolver: zodResolver(createMaterialProductSchema),
     mode: "onSubmit",
     defaultValues: {
+      familyId,
       name: "",
       unit: "PCS" as const,
     },
@@ -55,17 +58,19 @@ export function ProductFormDialog({
   useEffect(() => {
     if (open) {
       form.reset({
+        familyId,
         name: product?.name ?? "",
         unit: product?.unit ?? "PCS",
       });
     }
-  }, [open, product, form]);
+  }, [open, product, familyId, form]);
 
   const label = MATERIAL_MODULE_LABELS[type];
 
   const handleSubmit = form.handleSubmit(async (data) => {
     onOpenChange(false);
     await onSubmit({
+      familyId,
       name: data.name,
       unit: data.unit,
     });

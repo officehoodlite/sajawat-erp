@@ -5,13 +5,15 @@ import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   MaterialConsumptionResponse,
+  MaterialFamilyDto,
+  MaterialFamiliesResponse,
   MaterialProductDto,
   MaterialProductsResponse,
   MaterialPurchasesResponse,
   MaterialStockDto,
 } from "@/types/material-module";
 import type { MaterialModuleType } from "@/types/enums";
-import type { CreateMaterialProductInput, CreateMaterialPurchaseInput, UpdateMaterialPurchaseInput } from "@/validators/inventory";
+import type { CreateMaterialFamilyInput, CreateMaterialProductInput, CreateMaterialPurchaseInput, UpdateMaterialPurchaseInput } from "@/validators/inventory";
 import { toast } from "sonner";
 
 function moduleKeys(type: MaterialModuleType) {
@@ -33,6 +35,7 @@ function buildQuery(params: Record<string, string | number | undefined>) {
 
 function invalidateProducts(queryClient: ReturnType<typeof useQueryClient>, type: MaterialModuleType) {
   queryClient.invalidateQueries({ queryKey: [type, "products"] });
+  queryClient.invalidateQueries({ queryKey: [type, "families"] });
   queryClient.invalidateQueries({ queryKey: moduleKeys(type).options });
 }
 
@@ -42,19 +45,38 @@ function invalidatePurchases(queryClient: ReturnType<typeof useQueryClient>, typ
   queryClient.invalidateQueries({ queryKey: moduleKeys(type).options });
 }
 
-export function useMaterialProducts(
+export function useMaterialFamilies(
   type: MaterialModuleType,
   page: number,
   limit: number,
   search: string
 ) {
   return useQuery({
-    queryKey: moduleKeys(type).products(page, limit, search),
+    queryKey: moduleKeys(type).families(page, limit, search),
     queryFn: () =>
-      apiFetch<MaterialProductsResponse>(
-        `${basePath(type)}/products${buildQuery({ page, limit, search })}`
+      apiFetch<MaterialFamiliesResponse>(
+        `${basePath(type)}/families${buildQuery({ page, limit, search })}`
       ),
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useMaterialProducts(
+  type: MaterialModuleType,
+  page: number,
+  limit: number,
+  search: string,
+  familyId?: string,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: moduleKeys(type).products(page, limit, search, familyId),
+    queryFn: () =>
+      apiFetch<MaterialProductsResponse>(
+        `${basePath(type)}/products${buildQuery({ page, limit, search, familyId })}`
+      ),
+    placeholderData: keepPreviousData,
+    enabled,
   });
 }
 
@@ -112,6 +134,51 @@ export function useActiveMaterialProducts(type: MaterialModuleType, enabled = tr
   });
 }
 
+export function useCreateMaterialFamily(type: MaterialModuleType) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateMaterialFamilyInput) =>
+      apiFetch<MaterialFamilyDto>(`${basePath(type)}/families`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      invalidateProducts(queryClient, type);
+      toast.success("Name created");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateMaterialFamily(type: MaterialModuleType) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      apiFetch<MaterialFamilyDto>(`${basePath(type)}/families/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ name }),
+      }),
+    onSuccess: () => {
+      invalidateProducts(queryClient, type);
+      toast.success("Name updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteMaterialFamily(type: MaterialModuleType) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`${basePath(type)}/families/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      invalidateProducts(queryClient, type);
+      toast.success("Name deleted");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useCreateMaterialProduct(type: MaterialModuleType) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -152,6 +219,20 @@ export function useArchiveMaterialProduct(type: MaterialModuleType) {
     onSuccess: () => {
       invalidateProducts(queryClient, type);
       toast.success("Product archived");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteMaterialProduct(type: MaterialModuleType) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`${basePath(type)}/products/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      invalidateProducts(queryClient, type);
+      queryClient.invalidateQueries({ queryKey: moduleKeys(type).stock });
+      toast.success("Product deleted");
     },
     onError: (e: Error) => toast.error(e.message),
   });

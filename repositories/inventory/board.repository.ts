@@ -224,6 +224,14 @@ export class BoardRepository {
   }
 
   async deleteMaterial(id: string) {
+    const thicknessCount = await prisma.boardThickness.count({ where: { boardId: id } });
+    if (thicknessCount > 0) {
+      const err = new Error("Delete all thicknesses under this material first") as Error & {
+        statusCode?: number;
+      };
+      err.statusCode = 400;
+      throw err;
+    }
     return prisma.board.delete({ where: { id } });
   }
 
@@ -256,11 +264,16 @@ export class BoardRepository {
       err.statusCode = 404;
       throw err;
     }
-    const remainingSqft = await this.sumRemainingSqft(id);
-    if (remainingSqft > 0) {
-      const err = new Error("Cannot delete thickness with remaining stock") as Error & {
-        statusCode?: number;
-      };
+    const [inventoryCount, presetCount, manufacturingPresetCount, actualCount] = await Promise.all([
+      prisma.boardInventory.count({ where: { boardThicknessId: id } }),
+      prisma.productModelBoardPreset.count({ where: { boardThicknessId: id } }),
+      prisma.manufacturingModelBoardPreset.count({ where: { boardThicknessId: id } }),
+      prisma.lotActualBoardEntry.count({ where: { boardThicknessId: id } }),
+    ]);
+    if (inventoryCount > 0 || presetCount > 0 || manufacturingPresetCount > 0 || actualCount > 0) {
+      const err = new Error(
+        "Cannot delete this thickness because it has purchases or is used on a product model or lot"
+      ) as Error & { statusCode?: number };
       err.statusCode = 400;
       throw err;
     }

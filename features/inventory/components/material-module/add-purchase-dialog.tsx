@@ -105,7 +105,7 @@ export function AddPurchaseDialog({
             <Select
               value={form.watch("productId") || null}
               onValueChange={(v) => form.setValue("productId", v ?? "")}
-              items={products.map((p) => ({ value: p.id, label: p.name }))}
+              items={products.map((p) => ({ value: p.id, label: p.displayName }))}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select product" />
@@ -113,7 +113,7 @@ export function AddPurchaseDialog({
               <SelectContent>
                 {products.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name}
+                    {p.displayName}
                   </SelectItem>
                 ))}
               </SelectContent>

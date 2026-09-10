@@ -39,6 +39,8 @@ enum Unit {
   ML
   MTR
   SQFT
+  FEET
+  SET
   BOX
   ROLL
   SHEET
@@ -98,14 +100,24 @@ model BoardInventory {
   updatedAt        DateTime                  @updatedAt
 }
 
+model PaintFamily {
+  id        String         @id @default(cuid())
+  name      String         @unique
+  products  PaintProduct[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
 model PaintProduct {
   id                         String                          @id @default(cuid())
-  name                       String                          @unique
+  familyId                   String
+  name                       String
   brand                      String?
   unit                       Unit
   description                String?
   isActive                   Boolean                         @default(true)
   remainingStock             Decimal                         @default(0) @db.Decimal(18, 6)
+  family                     PaintFamily                     @relation(fields: [familyId], references: [id], onDelete: Restrict)
   purchases                  PaintPurchase[]
   consumptions               PaintConsumptionLog[]
   paintEntries               ManufacturingPaintEntry[]
@@ -113,6 +125,9 @@ model PaintProduct {
   manufacturingPaintPresets  ManufacturingModelPaintPreset[]
   createdAt                  DateTime                        @default(now())
   updatedAt                  DateTime                        @updatedAt
+
+  @@unique([familyId, name])
+  @@index([familyId])
 }
 
 model PaintPurchase {
@@ -150,14 +165,24 @@ model PaintConsumptionLog {
   @@index([lotId])
 }
 
+model HardwareFamily {
+  id        String            @id @default(cuid())
+  name      String            @unique
+  products  HardwareProduct[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
 model HardwareProduct {
   id                            String                             @id @default(cuid())
-  name                          String                             @unique
+  familyId                      String
+  name                          String
   brand                         String?
   unit                          Unit
   description                   String?
   isActive                      Boolean                            @default(true)
   remainingStock                Decimal                            @default(0) @db.Decimal(18, 6)
+  family                        HardwareFamily                     @relation(fields: [familyId], references: [id], onDelete: Restrict)
   purchases                     HardwarePurchase[]
   consumptions                  HardwareConsumptionLog[]
   hardwareEntries               ManufacturingHardwareEntry[]
@@ -165,6 +190,9 @@ model HardwareProduct {
   manufacturingHardwarePresets  ManufacturingModelHardwarePreset[]
   createdAt                     DateTime                           @default(now())
   updatedAt                     DateTime                           @updatedAt
+
+  @@unique([familyId, name])
+  @@index([familyId])
 }
 
 model HardwarePurchase {
@@ -202,14 +230,24 @@ model HardwareConsumptionLog {
   @@index([lotId])
 }
 
+model PackingFamily {
+  id        String           @id @default(cuid())
+  name      String           @unique
+  products  PackingProduct[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
 model PackingProduct {
   id                           String                            @id @default(cuid())
-  name                         String                            @unique
+  familyId                     String
+  name                         String
   brand                        String?
   unit                         Unit
   description                  String?
   isActive                     Boolean                           @default(true)
   remainingStock               Decimal                           @default(0) @db.Decimal(18, 6)
+  family                       PackingFamily                     @relation(fields: [familyId], references: [id], onDelete: Restrict)
   purchases                    PackingPurchase[]
   consumptions                 PackingConsumptionLog[]
   packingEntries               ManufacturingPackingEntry[]
@@ -217,6 +255,9 @@ model PackingProduct {
   manufacturingPackingPresets  ManufacturingModelPackingPreset[]
   createdAt                    DateTime                          @default(now())
   updatedAt                    DateTime                          @updatedAt
+
+  @@unique([familyId, name])
+  @@index([familyId])
 }
 
 model PackingPurchase {
@@ -254,14 +295,24 @@ model PackingConsumptionLog {
   @@index([lotId])
 }
 
+model EdgeBindingFamily {
+  id        String               @id @default(cuid())
+  name      String               @unique
+  products  EdgeBindingProduct[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+}
+
 model EdgeBindingProduct {
   id                               String                                @id @default(cuid())
-  name                             String                                @unique
+  familyId                         String
+  name                             String
   brand                            String?
   unit                             Unit
   description                      String?
   isActive                         Boolean                               @default(true)
   remainingStock                   Decimal                               @default(0) @db.Decimal(18, 6)
+  family                           EdgeBindingFamily                     @relation(fields: [familyId], references: [id], onDelete: Restrict)
   purchases                        EdgeBindingPurchase[]
   consumptions                     EdgeBindingConsumptionLog[]
   edgeBindingEntries               ManufacturingEdgeBindingEntry[]
@@ -269,6 +320,9 @@ model EdgeBindingProduct {
   manufacturingEdgeBindingPresets  ManufacturingModelEdgeBindingPreset[]
   createdAt                        DateTime                              @default(now())
   updatedAt                        DateTime                              @updatedAt
+
+  @@unique([familyId, name])
+  @@index([familyId])
 }
 
 model EdgeBindingPurchase {
@@ -306,14 +360,24 @@ model EdgeBindingConsumptionLog {
   @@index([lotId])
 }
 
+model GlassFamily {
+  id        String         @id @default(cuid())
+  name      String         @unique
+  products  GlassProduct[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
 model GlassProduct {
   id                          String                            @id @default(cuid())
-  name                        String                            @unique
+  familyId                    String
+  name                        String
   brand                       String?
   unit                        Unit
   description                 String?
   isActive                    Boolean                           @default(true)
   remainingStock              Decimal                           @default(0) @db.Decimal(18, 6)
+  family                      GlassFamily                       @relation(fields: [familyId], references: [id], onDelete: Restrict)
   purchases                   GlassPurchase[]
   consumptions                GlassConsumptionLog[]
   glassEntries                ManufacturingGlassEntry[]
@@ -321,6 +385,9 @@ model GlassProduct {
   manufacturingGlassPresets   ManufacturingModelGlassPreset[]
   createdAt                   DateTime                          @default(now())
   updatedAt                   DateTime                          @updatedAt
+
+  @@unique([familyId, name])
+  @@index([familyId])
 }
 
 model GlassPurchase {
