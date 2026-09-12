@@ -367,14 +367,16 @@ export function ProductionPageClient() {
     {
       id: "model",
       header: "Model",
-      cell: ({ row }) => (
-        <span className="flex max-w-[9rem] flex-col leading-tight">
-          <span className="break-words">({row.original.productName})</span>
-          <span className="whitespace-nowrap">
-            {parseCatalogModelName(row.original.modelName).modelNumber}
+      cell: ({ row }) => {
+        const { modelNumber, size } = parseCatalogModelName(row.original.modelName);
+        return (
+          <span className="flex max-w-[10rem] flex-col leading-tight">
+            <span className="break-words">({row.original.productName})</span>
+            <span className="whitespace-nowrap">{modelNumber || "—"}</span>
+            {size ? <span className="break-words text-muted-foreground">{size}</span> : null}
           </span>
-        </span>
-      ),
+        );
+      },
     },
     {
       accessorKey: "parts",
@@ -500,6 +502,7 @@ export function ProductionPageClient() {
                 "Lot",
                 "Product",
                 "Model",
+                "Size",
                 "Parts",
                 "Details",
                 "Carpentry remaining",
@@ -512,23 +515,27 @@ export function ProductionPageClient() {
                 "Status",
                 "Description",
               ],
-              ...filteredEntries.map((entry) => [
-                ...(showDateColumn ? [entry.workDate] : []),
-                entry.lotNumber,
-                entry.productName,
-                parseCatalogModelName(entry.modelName).modelNumber,
-                formatPartsDisplay(entry.parts),
-                entry.details,
-                entry.carpentryQty,
-                entry.paintingReady,
-                entry.paintingStatusQty,
-                entry.paintingBalance,
-                entry.completedReady,
-                entry.completedOutQty,
-                entry.completedBalance,
-                entry.statusText ?? "",
-                entry.description ?? "",
-              ]),
+              ...filteredEntries.map((entry) => {
+                const { modelNumber, size } = parseCatalogModelName(entry.modelName);
+                return [
+                  ...(showDateColumn ? [entry.workDate] : []),
+                  entry.lotNumber,
+                  entry.productName,
+                  modelNumber,
+                  size,
+                  formatPartsDisplay(entry.parts),
+                  entry.details,
+                  entry.carpentryQty,
+                  entry.paintingReady,
+                  entry.paintingStatusQty,
+                  entry.paintingBalance,
+                  entry.completedReady,
+                  entry.completedOutQty,
+                  entry.completedBalance,
+                  entry.statusText ?? "",
+                  entry.description ?? "",
+                ];
+              }),
             ]);
           }}
         >
@@ -657,10 +664,13 @@ export function ProductionPageClient() {
                   <Select
                     value={selectedCatalogModelId || null}
                     onValueChange={(v) => setSelectedCatalogModelId(v ?? "")}
-                    items={catalogModels.map((m) => ({
-                      value: m.id,
-                      label: m.modelName,
-                    }))}
+                    items={catalogModels.map((m) => {
+                      const { modelNumber, size } = parseCatalogModelName(m.modelName);
+                      return {
+                        value: m.id,
+                        label: size ? `${modelNumber} — ${size}` : modelNumber || m.modelName,
+                      };
+                    })}
                     disabled={!selectedProductId}
                   >
                     <SelectTrigger className="w-full">
@@ -669,11 +679,14 @@ export function ProductionPageClient() {
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      {catalogModels.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.modelName}
-                        </SelectItem>
-                      ))}
+                      {catalogModels.map((m) => {
+                        const { modelNumber, size } = parseCatalogModelName(m.modelName);
+                        return (
+                          <SelectItem key={m.id} value={m.id}>
+                            {size ? `${modelNumber} — ${size}` : modelNumber || m.modelName}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
