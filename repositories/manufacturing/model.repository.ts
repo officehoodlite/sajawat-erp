@@ -498,14 +498,14 @@ export function mapLotSummaryFromQuery(lot: {
   const edgeBindingEntries = lot.models.flatMap((m) =>
     m.edgeBindingEntries.map((e) => ({
       name: e.edgeBindingProduct.name,
-      quantity: totalForModelQty(toNumber(e.quantity), m.quantity),
+      quantity: round2(toNumber(e.quantity)),
       unit: e.edgeBindingProduct.unit,
     }))
   );
   const glassEntries = lot.models.flatMap((m) =>
     m.glassEntries.map((e) => ({
       name: e.glassProduct.name,
-      quantity: totalForModelQty(toNumber(e.quantity), m.quantity),
+      quantity: round2(toNumber(e.quantity)),
       unit: e.glassProduct.unit,
     }))
   );
@@ -545,7 +545,7 @@ export function mapLotSummaryFromQuery(lot: {
       m.edgeBindingEntries.map((e) => ({
         modelId: m.id,
         name: e.edgeBindingProduct.name,
-        quantity: totalForModelQty(toNumber(e.quantity), m.quantity),
+        quantity: round2(toNumber(e.quantity)),
         unit: e.edgeBindingProduct.unit,
       }))
     )
@@ -555,7 +555,7 @@ export function mapLotSummaryFromQuery(lot: {
       m.glassEntries.map((e) => ({
         modelId: m.id,
         name: e.glassProduct.name,
-        quantity: totalForModelQty(toNumber(e.quantity), m.quantity),
+        quantity: round2(toNumber(e.quantity)),
         unit: e.glassProduct.unit,
       }))
     )

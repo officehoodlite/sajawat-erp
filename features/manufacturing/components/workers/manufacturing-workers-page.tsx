@@ -9,7 +9,7 @@ export function ManufacturingWorkersPageClient() {
     <ErpPage>
       <PageHeader
         title="Workers"
-        description="Select lots, add multiple work entries to a draft, then upload them all at once."
+        description="Select lots for draft upload, add entries manually, or import an Excel file to apply entries to every lot."
       />
       <ManufacturingWorkersTab />
     </ErpPage>

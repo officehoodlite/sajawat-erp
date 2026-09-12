@@ -1,6 +1,6 @@
 import { roundDecimal } from "@/lib/decimal";
 
-/** Per-unit entry × model qty (boards, edge binding, glass). Paint/hardware/packing use entered qty as-is. */
+/** Per-unit entry × model qty (boards only). Materials use entered qty as-is. */
 export function totalForModelQty(perUnit: number, modelQuantity: number): number {
   return roundDecimal(perUnit * modelQuantity);
 }
@@ -8,10 +8,9 @@ export function totalForModelQty(perUnit: number, modelQuantity: number): number
 export function materialEntryStockQty(
   type: "paint" | "hardware" | "packing" | "edgebinding" | "glass",
   entryQty: number,
-  modelQuantity: number
+  _modelQuantity: number
 ): number {
-  if (type === "edgebinding" || type === "glass") {
-    return totalForModelQty(entryQty, modelQuantity);
-  }
+  void type;
+  void _modelQuantity;
   return roundDecimal(entryQty);
 }

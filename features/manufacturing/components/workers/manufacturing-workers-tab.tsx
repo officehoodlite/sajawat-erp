@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WorkerEntryForm } from "@/features/manufacturing/components/workers/worker-entry-form";
+import { ImportWorkersMenu } from "@/features/manufacturing/components/workers/import-workers-menu";
 import {
   useCreateBulkLotWorkerEntries,
   useLots,
@@ -143,23 +144,26 @@ export function ManufacturingWorkersTab() {
 
       <ErpPageSection
         title="2. Add work entries"
-        description="Build a draft list of one or more worker entries. Nothing is saved until you upload."
+        description="Build a draft list, or import an Excel file to apply entries to every lot."
         actions={
-          <Button
-            size="sm"
-            disabled={selectedLotIds.length === 0}
-            onClick={() => setFormOpen(true)}
-          >
-            <Plus className="mr-2 size-4" />
-            Add entries
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ImportWorkersMenu />
+            <Button
+              size="sm"
+              disabled={selectedLotIds.length === 0}
+              onClick={() => setFormOpen(true)}
+            >
+              <Plus className="mr-2 size-4" />
+              Add entries
+            </Button>
+          </div>
         }
       >
         {draftEntries.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {selectedLotIds.length === 0
-              ? "Select at least one lot first."
-              : "No draft entries yet. Click Add entries to start."}
+              ? "Select lots for manual draft upload, or use Import to apply a file to all lots."
+              : "No draft entries yet. Click Add entries to start, or Import a file for all lots."}
           </p>
         ) : (
           <div className="space-y-2">

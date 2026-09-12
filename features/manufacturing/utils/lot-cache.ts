@@ -75,14 +75,14 @@ export function lotDetailToSummary(lot: LotDetailDto): LotSummaryDto {
   const edgeBindingEntries = lot.models.flatMap((m) =>
     m.edgeBindingEntries.map((e) => ({
       name: e.edgeBindingName,
-      quantity: totalForModelQty(e.quantity, m.quantity),
+      quantity: round2(e.quantity),
       unit: e.unit,
     }))
   );
   const glassEntries = lot.models.flatMap((m) =>
     m.glassEntries.map((e) => ({
       name: e.glassName,
-      quantity: totalForModelQty(e.quantity, m.quantity),
+      quantity: round2(e.quantity),
       unit: e.unit,
     }))
   );
@@ -122,7 +122,7 @@ export function lotDetailToSummary(lot: LotDetailDto): LotSummaryDto {
       m.edgeBindingEntries.map((e) => ({
         modelId: m.id,
         name: e.edgeBindingName,
-        quantity: totalForModelQty(e.quantity, m.quantity),
+        quantity: round2(e.quantity),
         unit: e.unit,
       }))
     )
@@ -132,7 +132,7 @@ export function lotDetailToSummary(lot: LotDetailDto): LotSummaryDto {
       m.glassEntries.map((e) => ({
         modelId: m.id,
         name: e.glassName,
-        quantity: totalForModelQty(e.quantity, m.quantity),
+        quantity: round2(e.quantity),
         unit: e.unit,
       }))
     )

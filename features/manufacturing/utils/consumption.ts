@@ -76,13 +76,11 @@ export function getModelPackingTotal(model: ModelDto): number {
 }
 
 export function getModelEdgeBindingTotal(model: ModelDto): number {
-  const perUnit = sumMaterialForModel(model.edgeBindingEntries);
-  return totalForModelQty(perUnit, model.quantity);
+  return sumMaterialForModel(model.edgeBindingEntries);
 }
 
 export function getModelGlassTotal(model: ModelDto): number {
-  const perUnit = sumMaterialForModel(model.glassEntries);
-  return totalForModelQty(perUnit, model.quantity);
+  return sumMaterialForModel(model.glassEntries);
 }
 
 export function groupPaintConsumption(models: ModelDto[]): MaterialConsumptionRow[] {

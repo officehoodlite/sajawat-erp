@@ -547,180 +547,183 @@ export function ProductionPageClient() {
       </PageHeader>
 
       <ErpPageSection title="In-Production entries">
-        <div className="mb-4 grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-2">
-            <Label required>Filter</Label>
-            <Select
-              value={filterMode}
-              onValueChange={(v) => setFilterMode((v as FilterMode) ?? "date")}
-              items={[
-                { value: "all", label: "All" },
-                { value: "date", label: "Date" },
-                { value: "lot", label: "LOT wise" },
-                { value: "model", label: "Model wise" },
-              ]}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="date">Date</SelectItem>
-                <SelectItem value="lot">LOT wise</SelectItem>
-                <SelectItem value="model">Model wise</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {filterMode === "date" ? (
+        <div className="mb-4 space-y-3">
+          <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
-              <Label htmlFor="filterDate" required>
-                Date
-              </Label>
-              <Input
-                id="filterDate"
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full"
-              />
+              <Label required>Filter</Label>
+              <Select
+                value={filterMode}
+                onValueChange={(v) => setFilterMode((v as FilterMode) ?? "date")}
+                items={[
+                  { value: "all", label: "All" },
+                  { value: "date", label: "Date" },
+                  { value: "lot", label: "LOT wise" },
+                  { value: "model", label: "Model wise" },
+                ]}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="date">Date</SelectItem>
+                  <SelectItem value="lot">LOT wise</SelectItem>
+                  <SelectItem value="model">Model wise</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          ) : null}
 
-          {filterMode === "lot" ? (
-            <>
+            {filterMode === "date" ? (
               <div className="space-y-2">
-                <Label htmlFor="lotSearch">Search lot</Label>
+                <Label htmlFor="filterDate" required>
+                  Date
+                </Label>
                 <Input
-                  id="lotSearch"
-                  value={lotSearch}
-                  onChange={(e) => setLotSearch(e.target.value)}
-                  placeholder="Lot number"
+                  id="filterDate"
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
                   className="w-full"
                 />
               </div>
-              <div className="space-y-2">
-                <Label required>Lot</Label>
-                <Select
-                  value={selectedLotId || null}
-                  onValueChange={(v) => setSelectedLotId(v ?? "")}
-                  items={(lotsPage?.items ?? []).map((lot) => ({
-                    value: lot.id,
-                    label: lot.lotNumber,
-                  }))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select lot" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(lotsPage?.items ?? []).map((lot) => (
-                      <SelectItem key={lot.id} value={lot.id}>
-                        {lot.lotNumber}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          ) : null}
+            ) : null}
 
-          {filterMode === "model" ? (
-            <>
-              <div className="space-y-2">
-                <Label required>Product</Label>
-                <Select
-                  value={selectedProductId || null}
-                  onValueChange={(v) => {
-                    setSelectedProductId(v ?? "");
-                    setSelectedCatalogModelId("");
-                  }}
-                  items={catalogProducts.map((p) => ({
-                    value: p.id,
-                    label: p.name,
-                  }))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {catalogProducts.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label required>Model</Label>
-                <Select
-                  value={selectedCatalogModelId || null}
-                  onValueChange={(v) => setSelectedCatalogModelId(v ?? "")}
-                  items={catalogModels.map((m) => ({
-                    value: m.id,
-                    label: m.modelName,
-                  }))}
-                  disabled={!selectedProductId}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue
-                      placeholder={selectedProductId ? "Select model" : "Select product first"}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {catalogModels.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.modelName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          ) : null}
+            {filterMode === "lot" ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="lotSearch">Search lot</Label>
+                  <Input
+                    id="lotSearch"
+                    value={lotSearch}
+                    onChange={(e) => setLotSearch(e.target.value)}
+                    placeholder="Lot number"
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label required>Lot</Label>
+                  <Select
+                    value={selectedLotId || null}
+                    onValueChange={(v) => setSelectedLotId(v ?? "")}
+                    items={(lotsPage?.items ?? []).map((lot) => ({
+                      value: lot.id,
+                      label: lot.lotNumber,
+                    }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select lot" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(lotsPage?.items ?? []).map((lot) => (
+                        <SelectItem key={lot.id} value={lot.id}>
+                          {lot.lotNumber}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            ) : null}
 
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => setStatusFilter(v ?? "all")}
-              items={[
-                { value: "all", label: "All statuses" },
-                ...statusOptions.map((value) => ({
-                  value,
-                  label: value === EMPTY_STATUS ? "—" : value,
-                })),
-              ]}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {statusOptions.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {value === EMPTY_STATUS ? "—" : value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="statusContains">Status contains</Label>
-            <Input
-              id="statusContains"
-              value={statusContains}
-              onChange={(e) => setStatusContains(e.target.value)}
-              placeholder="Filter by text"
-              className="w-full"
-            />
+            {filterMode === "model" ? (
+              <>
+                <div className="space-y-2">
+                  <Label required>Product</Label>
+                  <Select
+                    value={selectedProductId || null}
+                    onValueChange={(v) => {
+                      setSelectedProductId(v ?? "");
+                      setSelectedCatalogModelId("");
+                    }}
+                    items={catalogProducts.map((p) => ({
+                      value: p.id,
+                      label: p.name,
+                    }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {catalogProducts.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label required>Model</Label>
+                  <Select
+                    value={selectedCatalogModelId || null}
+                    onValueChange={(v) => setSelectedCatalogModelId(v ?? "")}
+                    items={catalogModels.map((m) => ({
+                      value: m.id,
+                      label: m.modelName,
+                    }))}
+                    disabled={!selectedProductId}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue
+                        placeholder={selectedProductId ? "Select model" : "Select product first"}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {catalogModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.modelName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => setStatusFilter(v ?? "all")}
+                items={[
+                  { value: "all", label: "All statuses" },
+                  ...statusOptions.map((value) => ({
+                    value,
+                    label: value === EMPTY_STATUS ? "—" : value,
+                  })),
+                ]}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {statusOptions.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {value === EMPTY_STATUS ? "—" : value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="statusContains">Status contains</Label>
+              <Input
+                id="statusContains"
+                value={statusContains}
+                onChange={(e) => setStatusContains(e.target.value)}
+                placeholder="Filter by text"
+                className="w-full"
+              />
+            </div>
           </div>
 
           {isFetching ? (
-            <p className="self-center text-sm text-muted-foreground">Loading…</p>
+            <p className="text-sm text-muted-foreground">Loading…</p>
           ) : null}
           {isError ? (
-            <p className="self-center text-sm text-destructive">{(error as Error).message}</p>
+            <p className="text-sm text-destructive">{(error as Error).message}</p>
           ) : null}
         </div>
 

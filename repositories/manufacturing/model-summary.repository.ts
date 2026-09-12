@@ -122,7 +122,7 @@ export async function findCatalogModelLotSummaries(
       model.edgeBindingEntries.map((e) => ({
         label: e.edgeBindingProduct.name,
         unit: e.edgeBindingProduct.unit,
-        total: totalForModelQty(toNumber(e.quantity), qty),
+        total: round2(toNumber(e.quantity)),
       })),
       qty
     );
@@ -131,7 +131,7 @@ export async function findCatalogModelLotSummaries(
       model.glassEntries.map((e) => ({
         label: e.glassProduct.name,
         unit: e.glassProduct.unit,
-        total: totalForModelQty(toNumber(e.quantity), qty),
+        total: round2(toNumber(e.quantity)),
       })),
       qty
     );
