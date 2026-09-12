@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 import { parseFirstSheetRows } from "@/lib/xlsx-rows";
 import { lotWorkerRepository } from "@/repositories/manufacturing/lot-worker.repository";
 import {
@@ -7,6 +6,7 @@ import {
 } from "@/validators/manufacturing";
 
 const MAX_ROWS = 200;
+const MAX_LOTS = 100;
 
 export type WorkerImportResult = {
   lotCount: number;
@@ -45,6 +45,7 @@ function parseWorkerRow(row: Record<string, string>, rowNumber: number): CreateL
     .map((name) => name.trim())
     .filter(Boolean);
 
+  const packQtyRaw = getField(row, "packqty", "pack qty", "packqty (optional)");
   const payload = {
     type,
     workDate,
@@ -54,7 +55,7 @@ function parseWorkerRow(row: Record<string, string>, rowNumber: number): CreateL
     halfMistri: getField(row, "halfmistri", "half mistri"),
     helper: getField(row, "helper"),
     hours: getField(row, "hours"),
-    packQty: getField(row, "packqty", "pack qty", "packqty (optional)") || undefined,
+    ...(packQtyRaw ? { packQty: packQtyRaw } : {}),
   };
 
   const parsed = createLotWorkerEntrySchema.safeParse(payload);
@@ -65,9 +66,18 @@ function parseWorkerRow(row: Record<string, string>, rowNumber: number): CreateL
   return parsed.data;
 }
 
-export async function importWorkerEntriesToAllLots(
-  buffer: Buffer | ArrayBuffer | Uint8Array
+export async function importWorkerEntriesForLots(
+  buffer: Buffer | ArrayBuffer | Uint8Array,
+  lotIds: string[]
 ): Promise<WorkerImportResult> {
+  const uniqueLotIds = [...new Set(lotIds.map((id) => id.trim()).filter(Boolean))];
+  if (uniqueLotIds.length === 0) {
+    throw new Error("Select at least one lot before importing");
+  }
+  if (uniqueLotIds.length > MAX_LOTS) {
+    throw new Error(`Too many lots selected (max ${MAX_LOTS})`);
+  }
+
   const sheetRows = await parseFirstSheetRows(buffer);
   if (sheetRows.length === 0) throw new Error("The spreadsheet has no data rows");
   if (sheetRows.length > MAX_ROWS) {
@@ -97,14 +107,7 @@ export async function importWorkerEntriesToAllLots(
     );
   }
 
-  const lots = await prisma.manufacturingLot.findMany({
-    select: { id: true },
-    orderBy: { createdAt: "asc" },
-  });
-  if (lots.length === 0) throw new Error("No lots found to import into");
-
-  const lotIds = lots.map((lot) => lot.id);
-  const result = await lotWorkerRepository.createEntriesForLots(lotIds, entries);
+  const result = await lotWorkerRepository.createEntriesForLots(uniqueLotIds, entries);
 
   return {
     lotCount: result.lotCount,

@@ -125,10 +125,7 @@ const lotWorkerEntryBaseSchema = z.object({
   packQty: coercedNonNegativeInt.max(1_000_000).optional(),
 });
 
-export const createLotWorkerEntrySchema = lotWorkerEntryBaseSchema.refine(
-  (data) => data.type !== "PACKING" || data.packQty !== undefined,
-  { message: "Pack qty is required for packing entries", path: ["packQty"] }
-);
+export const createLotWorkerEntrySchema = lotWorkerEntryBaseSchema;
 
 export const updateLotWorkerEntrySchema = lotWorkerEntryBaseSchema.partial();
 

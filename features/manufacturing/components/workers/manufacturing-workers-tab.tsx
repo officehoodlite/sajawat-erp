@@ -144,10 +144,10 @@ export function ManufacturingWorkersTab() {
 
       <ErpPageSection
         title="2. Add work entries"
-        description="Build a draft list, or import an Excel file to apply entries to every lot."
+        description="Build a draft list, or import an Excel file onto the selected lots only."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <ImportWorkersMenu />
+            <ImportWorkersMenu selectedLotIds={selectedLotIds} />
             <Button
               size="sm"
               disabled={selectedLotIds.length === 0}
@@ -162,8 +162,8 @@ export function ManufacturingWorkersTab() {
         {draftEntries.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {selectedLotIds.length === 0
-              ? "Select lots for manual draft upload, or use Import to apply a file to all lots."
-              : "No draft entries yet. Click Add entries to start, or Import a file for all lots."}
+              ? "Select at least one lot first, then add entries or import a file."
+              : "No draft entries yet. Click Add entries to start, or Import a file for the selected lots."}
           </p>
         ) : (
           <div className="space-y-2">

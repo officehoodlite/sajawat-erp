@@ -9,7 +9,6 @@ export const WORKER_ENTRY_TEMPLATE_HEADERS = [
   "halfMistri",
   "helper",
   "hours",
-  "packQty (optional)",
 ] as const;
 
 export async function downloadWorkerEntriesTemplate() {
@@ -26,7 +25,6 @@ export async function downloadWorkerEntriesTemplate() {
     0,
     1,
     8,
-    "",
   ]);
   sheet.addRow([
     "PACKING",
@@ -37,7 +35,6 @@ export async function downloadWorkerEntriesTemplate() {
     0,
     2,
     8,
-    50,
   ]);
   sheet.columns.forEach((col) => {
     col.width = 22;

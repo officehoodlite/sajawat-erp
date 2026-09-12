@@ -21,14 +21,24 @@ type WorkerImportResult = {
   errors: Array<{ row: number; message: string }>;
 };
 
-export function ImportWorkersMenu() {
+interface ImportWorkersMenuProps {
+  selectedLotIds: string[];
+}
+
+export function ImportWorkersMenu({ selectedLotIds }: ImportWorkersMenuProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const [isImporting, setIsImporting] = useState(false);
+  const hasSelectedLots = selectedLotIds.length > 0;
 
   const handleUpload = async (file: File) => {
+    if (!hasSelectedLots) {
+      toast.error("Select at least one lot before importing");
+      return;
+    }
     const form = new FormData();
     form.append("file", file);
+    form.append("lotIds", JSON.stringify(selectedLotIds));
     setIsImporting(true);
     try {
       const result = await apiFetch<WorkerImportResult>("/api/manufacturing/workers/import", {
@@ -37,7 +47,7 @@ export function ImportWorkersMenu() {
       });
       const summary = `Imported ${result.entryCount} entr${
         result.entryCount === 1 ? "y" : "ies"
-      } to ${result.lotCount} lot${result.lotCount === 1 ? "" : "s"}`;
+      } to ${result.lotCount} selected lot${result.lotCount === 1 ? "" : "s"}`;
       if (result.errors.length > 0) {
         const preview = result.errors
           .slice(0, 5)
@@ -48,7 +58,10 @@ export function ImportWorkersMenu() {
         toast.success(summary);
       }
       void queryClient.invalidateQueries({ queryKey: queryKeys.lots.all });
-      void queryClient.invalidateQueries({ queryKey: ["lots"] });
+      for (const lotId of selectedLotIds) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.lots.summary(lotId) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.lots.detail(lotId) });
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Import failed");
     } finally {
@@ -83,7 +96,16 @@ export function ImportWorkersMenu() {
           <DropdownMenuItem onClick={() => void downloadWorkerEntriesTemplate()}>
             Download template
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => inputRef.current?.click()}>
+          <DropdownMenuItem
+            disabled={!hasSelectedLots}
+            onClick={() => {
+              if (!hasSelectedLots) {
+                toast.error("Select at least one lot before importing");
+                return;
+              }
+              inputRef.current?.click();
+            }}
+          >
             Upload file
           </DropdownMenuItem>
         </DropdownMenuContent>
