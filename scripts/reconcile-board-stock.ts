@@ -1,83 +1,51 @@
 /**
- * Restores board inventory incorrectly deducted by carpenter (model) board entries.
- * Board stock should only reflect admin LotActualBoardEntry totals.
- *
+ * Rebuilds BoardInventory.remainingSqft from purchases − admin LotActualBoardEntry usage.
  * Run: npx tsx scripts/reconcile-board-stock.ts
  */
 import { prisma } from "../lib/prisma";
+import { reconcileBoardThicknessRemaining } from "../lib/manufacturing-stock";
 import { roundDecimal } from "../lib/decimal";
 import { toNumber } from "../lib/mappers";
 
 async function main() {
-  const carpenterEntries = await prisma.manufacturingBoardEntry.findMany({
-    select: {
-      id: true,
-      boardInventoryId: true,
-      totalSqft: true,
-      model: { select: { modelName: true, lot: { select: { lotNumber: true } } } },
-    },
+  const thicknesses = await prisma.boardThickness.findMany({
+    include: { board: true },
+    orderBy: [{ board: { materialName: "asc" } }, { thickness: "asc" }],
   });
 
-  const restoreByInventory = new Map<string, number>();
-
-  for (const entry of carpenterEntries) {
-    const sqft = roundDecimal(toNumber(entry.totalSqft));
-    if (sqft === 0) continue;
-    restoreByInventory.set(
-      entry.boardInventoryId,
-      roundDecimal((restoreByInventory.get(entry.boardInventoryId) ?? 0) + sqft)
-    );
-  }
-
-  if (restoreByInventory.size === 0) {
-    console.log("No carpenter board entries found — nothing to restore.");
-    return;
-  }
-
-  console.log(`Restoring carpenter deductions from ${carpenterEntries.length} model board entries:\n`);
+  console.log(`Reconciling board stock for ${thicknesses.length} thicknesses...\n`);
 
   await prisma.$transaction(async (tx) => {
-    for (const [inventoryId, sqft] of restoreByInventory) {
-      const inventory = await tx.boardInventory.findUnique({
-        where: { id: inventoryId },
-        include: { boardThickness: { include: { board: true } } },
-      });
-      if (!inventory) {
-        console.warn(`  Skip unknown inventory ${inventoryId}`);
-        continue;
-      }
-
-      const before = roundDecimal(toNumber(inventory.remainingSqft));
-      const after = roundDecimal(before + sqft);
-      await tx.boardInventory.update({
-        where: { id: inventoryId },
-        data: { remainingSqft: after },
-      });
-
-      console.log(
-        `  +${sqft} sqft → ${inventory.boardThickness.board.materialName} ${inventory.boardThickness.thickness} (${before} → ${after})`
-      );
+    for (const thickness of thicknesses) {
+      await reconcileBoardThicknessRemaining(tx, thickness.id);
     }
   });
 
-  const actualByThickness = await prisma.lotActualBoardEntry.groupBy({
-    by: ["boardThicknessId"],
-    _sum: { totalSqft: true },
-  });
-
-  console.log("\nAdmin actual usage net by thickness (should match stock impact):");
-  for (const row of actualByThickness) {
-    const thickness = await prisma.boardThickness.findUnique({
-      where: { id: row.boardThicknessId },
-      include: { board: true },
-    });
-    const label = thickness
-      ? `${thickness.board.materialName} ${thickness.thickness}`
-      : row.boardThicknessId;
-    console.log(`  ${label}: ${roundDecimal(toNumber(row._sum.totalSqft))} sqft net`);
+  for (const thickness of thicknesses) {
+    const [purchasedAgg, usedAgg, remainingAgg] = await Promise.all([
+      prisma.boardInventory.aggregate({
+        where: { boardThicknessId: thickness.id },
+        _sum: { purchaseSqft: true },
+      }),
+      prisma.lotActualBoardEntry.aggregate({
+        where: { boardThicknessId: thickness.id },
+        _sum: { totalSqft: true },
+      }),
+      prisma.boardInventory.aggregate({
+        where: { boardThicknessId: thickness.id },
+        _sum: { remainingSqft: true },
+      }),
+    ]);
+    const purchased = roundDecimal(toNumber(purchasedAgg._sum.purchaseSqft));
+    const used = roundDecimal(toNumber(usedAgg._sum.totalSqft));
+    const remaining = roundDecimal(toNumber(remainingAgg._sum.remainingSqft));
+    if (purchased === 0 && used === 0) continue;
+    console.log(
+      `  ${thickness.board.materialName} ${thickness.thickness}: purchased ${purchased}, used ${used}, remaining ${remaining}`
+    );
   }
 
-  console.log("\nDone. Board stock now reflects admin actual usage only.");
+  console.log("\nDone. Available stock = purchases − admin actual usage.");
 }
 
 main()

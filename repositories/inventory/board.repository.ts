@@ -59,27 +59,38 @@ export class BoardRepository {
   }
 
   async findStockAggregated(): Promise<BoardStockDto[]> {
-    const [thicknesses, sums] = await Promise.all([
+    const [thicknesses, purchaseSums, usageSums] = await Promise.all([
       prisma.boardThickness.findMany({
         include: { board: true },
         orderBy: [{ board: { materialName: "asc" } }, { thickness: "asc" }],
       }),
       prisma.boardInventory.groupBy({
         by: ["boardThicknessId"],
-        _sum: { remainingSqft: true },
+        _sum: { purchaseSqft: true },
+      }),
+      prisma.lotActualBoardEntry.groupBy({
+        by: ["boardThicknessId"],
+        _sum: { totalSqft: true },
       }),
     ]);
 
-    const remainingByThickness = new Map(
-      sums.map((row) => [row.boardThicknessId, toNumber(row._sum.remainingSqft)])
+    const purchasedByThickness = new Map(
+      purchaseSums.map((row) => [row.boardThicknessId, toNumber(row._sum.purchaseSqft)])
+    );
+    const usedByThickness = new Map(
+      usageSums.map((row) => [row.boardThicknessId, toNumber(row._sum.totalSqft)])
     );
 
-    return thicknesses.map((row) => ({
-      id: row.id,
-      materialName: row.board.materialName,
-      thickness: row.thickness,
-      remainingSqft: remainingByThickness.get(row.id) ?? 0,
-    }));
+    return thicknesses.map((row) => {
+      const purchased = roundDecimal(purchasedByThickness.get(row.id) ?? 0);
+      const used = roundDecimal(usedByThickness.get(row.id) ?? 0);
+      return {
+        id: row.id,
+        materialName: row.board.materialName,
+        thickness: row.thickness,
+        remainingSqft: roundDecimal(purchased - used),
+      };
+    });
   }
 
   async findPurchasesPaginated(query: BoardListQuery) {
@@ -293,11 +304,19 @@ export class BoardRepository {
   }
 
   async sumRemainingSqft(boardThicknessId: string) {
-    const agg = await prisma.boardInventory.aggregate({
-      where: { boardThicknessId },
-      _sum: { remainingSqft: true },
-    });
-    return toNumber(agg._sum.remainingSqft);
+    const [purchasedAgg, usedAgg] = await Promise.all([
+      prisma.boardInventory.aggregate({
+        where: { boardThicknessId },
+        _sum: { purchaseSqft: true },
+      }),
+      prisma.lotActualBoardEntry.aggregate({
+        where: { boardThicknessId },
+        _sum: { totalSqft: true },
+      }),
+    ]);
+    return roundDecimal(
+      toNumber(purchasedAgg._sum.purchaseSqft) - toNumber(usedAgg._sum.totalSqft)
+    );
   }
 
   async findInventories(boardThicknessId?: string) {

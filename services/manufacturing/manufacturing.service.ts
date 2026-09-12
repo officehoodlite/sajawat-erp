@@ -4,7 +4,7 @@ import { roundDecimal } from "@/lib/decimal";
 import { totalForModelQty, materialEntryStockQty } from "@/lib/model-consumption";
 import {
   adjustMaterialStock,
-  applyBoardThicknessNetDelta,
+  reconcileBoardThicknessRemaining,
   releaseMaterialStock,
   removeMaterialConsumptionLog,
   reserveMaterialStock,
@@ -428,7 +428,6 @@ export class ManufacturingService {
     const total = calcActualBoardTotalSqft(length, width, quantity, sqftIn, sqftOut);
 
     await prisma.$transaction(async (tx) => {
-      await applyBoardThicknessNetDelta(tx, input.boardThicknessId, total);
       await tx.lotActualBoardEntry.create({
         data: {
           lotId,
@@ -441,6 +440,7 @@ export class ManufacturingService {
           totalSqft: total,
         },
       });
+      await reconcileBoardThicknessRemaining(tx, input.boardThicknessId);
     });
 
     await invalidateBoardCaches();
@@ -467,21 +467,9 @@ export class ManufacturingService {
     const sqftIn = roundDecimal(input.sqftIn ?? toNumber(entry.sqftIn));
     const sqftOut = roundDecimal(input.sqftOut ?? toNumber(entry.sqftOut));
     const newTotal = calcActualBoardTotalSqft(length, width, quantity, sqftIn, sqftOut);
-    const oldTotal = roundDecimal(toNumber(entry.totalSqft));
     const nextThicknessId = input.boardThicknessId ?? entry.boardThicknessId;
 
     await prisma.$transaction(async (tx) => {
-      if (nextThicknessId === entry.boardThicknessId) {
-        await applyBoardThicknessNetDelta(
-          tx,
-          entry.boardThicknessId,
-          roundDecimal(newTotal - oldTotal)
-        );
-      } else {
-        await applyBoardThicknessNetDelta(tx, entry.boardThicknessId, -oldTotal);
-        await applyBoardThicknessNetDelta(tx, nextThicknessId, newTotal);
-      }
-
       await tx.lotActualBoardEntry.update({
         where: { id: entryId },
         data: {
@@ -494,6 +482,11 @@ export class ManufacturingService {
           totalSqft: newTotal,
         },
       });
+
+      await reconcileBoardThicknessRemaining(tx, entry.boardThicknessId);
+      if (nextThicknessId !== entry.boardThicknessId) {
+        await reconcileBoardThicknessRemaining(tx, nextThicknessId);
+      }
     });
 
     await invalidateBoardCaches();
@@ -510,11 +503,9 @@ export class ManufacturingService {
     });
     if (!entry || entry.lotId !== lotId) throw new Error("Entry not found");
 
-    const oldTotal = roundDecimal(toNumber(entry.totalSqft));
-
     await prisma.$transaction(async (tx) => {
-      await applyBoardThicknessNetDelta(tx, entry.boardThicknessId, -oldTotal);
       await tx.lotActualBoardEntry.delete({ where: { id: entryId } });
+      await reconcileBoardThicknessRemaining(tx, entry.boardThicknessId);
     });
 
     await invalidateBoardCaches();

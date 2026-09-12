@@ -64,11 +64,6 @@ export function BoardPurchaseHistoryTab() {
       cell: ({ row }) => formatNumber(row.original.quantity),
     },
     {
-      accessorKey: "remainingQuantity",
-      header: "Remaining",
-      cell: ({ row }) => formatNumber(row.original.remainingQuantity),
-    },
-    {
       accessorKey: "rate",
       header: "Rate",
       cell: ({ row }) =>

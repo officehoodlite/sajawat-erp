@@ -356,6 +356,79 @@ export async function releaseBoardThicknessSqft(
   });
 }
 
+/**
+ * Rebuild BoardInventory.remainingSqft for a thickness from purchases − admin actual usage.
+ * Source of truth for available board stock (carpenter planning entries do not affect stock).
+ */
+export async function reconcileBoardThicknessRemaining(
+  tx: Tx,
+  boardThicknessId: string
+) {
+  const inventories = await tx.boardInventory.findMany({
+    where: { boardThicknessId },
+    orderBy: [{ purchaseDate: "asc" }, { createdAt: "asc" }],
+  });
+  if (inventories.length === 0) {
+    const usage = await tx.lotActualBoardEntry.aggregate({
+      where: { boardThicknessId },
+      _sum: { totalSqft: true },
+    });
+    const used = roundDecimal(toNumber(usage._sum.totalSqft));
+    if (used > 0) {
+      throw new Error(
+        `Insufficient board stock: need ${formatNumber(used)} sqft, have 0 sqft`
+      );
+    }
+    return;
+  }
+
+  const usage = await tx.lotActualBoardEntry.aggregate({
+    where: { boardThicknessId },
+    _sum: { totalSqft: true },
+  });
+  const netUsed = roundDecimal(toNumber(usage._sum.totalSqft));
+  const purchased = roundDecimal(
+    inventories.reduce((sum, inv) => sum + toNumber(inv.purchaseSqft), 0)
+  );
+  const available = roundDecimal(purchased - netUsed);
+
+  if (available < 0) {
+    throw new Error(
+      `Insufficient board stock: need ${formatNumber(netUsed)} sqft, have ${formatNumber(purchased)} sqft`
+    );
+  }
+
+  // FIFO consume: oldest purchases are used first; leftover returns sit on newest purchase.
+  let consumeLeft = Math.max(0, netUsed);
+  const remainders: number[] = inventories.map((inv) => {
+    const purchase = roundDecimal(toNumber(inv.purchaseSqft));
+    const take = roundDecimal(Math.min(purchase, consumeLeft));
+    consumeLeft = roundDecimal(consumeLeft - take);
+    return roundDecimal(purchase - take);
+  });
+
+  if (netUsed < 0) {
+    // Net return/credit: keep full purchase remainders and add credit to newest lot.
+    const credit = roundDecimal(Math.abs(netUsed));
+    for (let i = 0; i < inventories.length; i++) {
+      remainders[i] = roundDecimal(toNumber(inventories[i].purchaseSqft));
+    }
+    remainders[remainders.length - 1] = roundDecimal(
+      remainders[remainders.length - 1] + credit
+    );
+  }
+
+  for (let i = 0; i < inventories.length; i++) {
+    const next = remainders[i];
+    const current = roundDecimal(toNumber(inventories[i].remainingSqft));
+    if (current === next) continue;
+    await tx.boardInventory.update({
+      where: { id: inventories[i].id },
+      data: { remainingSqft: next },
+    });
+  }
+}
+
 export async function applyBoardThicknessNetDelta(
   tx: Tx,
   boardThicknessId: string,
