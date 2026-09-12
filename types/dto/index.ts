@@ -151,6 +151,7 @@ export interface PaintEntryDto {
   paintName: string;
   quantity: number;
   unit: Unit;
+  createdAt: string;
 }
 
 export interface HardwareEntryDto {
@@ -160,6 +161,7 @@ export interface HardwareEntryDto {
   hardwareName: string;
   quantity: number;
   unit: Unit;
+  createdAt: string;
 }
 
 export interface PackingEntryDto {
@@ -169,6 +171,7 @@ export interface PackingEntryDto {
   packingName: string;
   quantity: number;
   unit: Unit;
+  createdAt: string;
 }
 
 export interface EdgeBindingEntryDto {
@@ -178,6 +181,7 @@ export interface EdgeBindingEntryDto {
   edgeBindingName: string;
   quantity: number;
   unit: Unit;
+  createdAt: string;
 }
 
 export interface GlassEntryDto {
@@ -187,6 +191,7 @@ export interface GlassEntryDto {
   glassName: string;
   quantity: number;
   unit: Unit;
+  createdAt: string;
 }
 
 export interface LotListItemDto {

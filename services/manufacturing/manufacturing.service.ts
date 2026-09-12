@@ -6,7 +6,9 @@ import {
   adjustMaterialStock,
   applyBoardThicknessNetDelta,
   releaseMaterialStock,
+  removeMaterialConsumptionLog,
   reserveMaterialStock,
+  writeMaterialConsumptionLog,
   type MaterialType,
 } from "@/lib/manufacturing-stock";
 import { toNumber } from "@/lib/mappers";
@@ -670,6 +672,13 @@ export class ManufacturingService {
           data: { modelId, glassProductId: productId, quantity: qty },
         });
       }
+
+      await writeMaterialConsumptionLog(tx, type, {
+        productId,
+        lotId: model.lotId,
+        modelId,
+        quantity: stockQty,
+      });
     });
 
     await invalidateMaterialOptions(type);
@@ -697,6 +706,8 @@ export class ManufacturingService {
     const oldProductId = entry.productId;
 
     await prisma.$transaction(async (tx) => {
+      await removeMaterialConsumptionLog(tx, type, model.id, oldProductId, oldStockQty);
+
       if (oldProductId === productId) {
         await adjustMaterialStock(tx, type, productId, oldStockQty, newStockQty);
       } else {
@@ -730,6 +741,13 @@ export class ManufacturingService {
           data: { glassProductId: productId, quantity: newQty },
         });
       }
+
+      await writeMaterialConsumptionLog(tx, type, {
+        productId,
+        lotId: model.lotId,
+        modelId: model.id,
+        quantity: newStockQty,
+      });
     });
 
     await invalidateMaterialOptions(type);
@@ -769,6 +787,7 @@ export class ManufacturingService {
     const stockQty = materialEntryStockQty(type, qty, model.quantity);
 
     await prisma.$transaction(async (tx) => {
+      await removeMaterialConsumptionLog(tx, type, model.id, entry.productId, stockQty);
       await releaseMaterialStock(tx, type, entry.productId, stockQty);
 
       if (type === "paint") await tx.manufacturingPaintEntry.delete({ where: { id: entryId } });
@@ -827,11 +846,6 @@ export class ManufacturingService {
           models: {
             include: {
               boardEntries: true,
-              paintEntries: true,
-              hardwareEntries: true,
-              packingEntries: true,
-              edgeBindingEntries: true,
-              glassEntries: true,
             },
           },
         },
@@ -872,114 +886,6 @@ export class ManufacturingService {
           "Add actual board consumption before completing a lot with calculated board usage"
         );
       }
-
-      type MaterialEntry = { productId: string; modelId: string; quantity: number };
-
-      const paintEntries: MaterialEntry[] = [];
-      const hardwareEntries: MaterialEntry[] = [];
-      const packingEntries: MaterialEntry[] = [];
-      const edgeBindingEntries: MaterialEntry[] = [];
-      const glassEntries: MaterialEntry[] = [];
-
-      for (const model of lot.models) {
-        for (const entry of model.paintEntries) {
-          paintEntries.push({
-            productId: entry.paintProductId,
-            modelId: model.id,
-            quantity: roundDecimal(toNumber(entry.quantity)),
-          });
-        }
-        for (const entry of model.hardwareEntries) {
-          hardwareEntries.push({
-            productId: entry.hardwareProductId,
-            modelId: model.id,
-            quantity: totalForModelQty(
-              roundDecimal(toNumber(entry.quantity)),
-              model.quantity
-            ),
-          });
-        }
-        for (const entry of model.packingEntries) {
-          packingEntries.push({
-            productId: entry.packingProductId,
-            modelId: model.id,
-            quantity: roundDecimal(toNumber(entry.quantity)),
-          });
-        }
-        for (const entry of model.edgeBindingEntries) {
-          edgeBindingEntries.push({
-            productId: entry.edgeBindingProductId,
-            modelId: model.id,
-            quantity: totalForModelQty(
-              roundDecimal(toNumber(entry.quantity)),
-              model.quantity
-            ),
-          });
-        }
-        for (const entry of model.glassEntries) {
-          glassEntries.push({
-            productId: entry.glassProductId,
-            modelId: model.id,
-            quantity: totalForModelQty(
-              roundDecimal(toNumber(entry.quantity)),
-              model.quantity
-            ),
-          });
-        }
-      }
-
-      async function writeMaterialConsumptionLogs(
-        entries: MaterialEntry[],
-        type: MaterialType
-      ) {
-        const byProduct = new Map<string, MaterialEntry[]>();
-        for (const entry of entries) {
-          const list = byProduct.get(entry.productId) ?? [];
-          list.push(entry);
-          byProduct.set(entry.productId, list);
-        }
-
-        for (const [productId, productEntries] of byProduct) {
-          const product =
-            type === "paint"
-              ? await tx.paintProduct.findUnique({ where: { id: productId } })
-              : type === "hardware"
-                ? await tx.hardwareProduct.findUnique({ where: { id: productId } })
-                : type === "packing"
-                  ? await tx.packingProduct.findUnique({ where: { id: productId } })
-                  : type === "edgebinding"
-                    ? await tx.edgeBindingProduct.findUnique({ where: { id: productId } })
-                    : await tx.glassProduct.findUnique({ where: { id: productId } });
-          if (!product) throw new Error("Product not found");
-
-          const totalUsed = roundDecimal(
-            productEntries.reduce((sum, entry) => sum + entry.quantity, 0)
-          );
-          let running = roundDecimal(toNumber(product.remainingStock) + totalUsed);
-
-          for (const entry of productEntries) {
-            running = roundDecimal(running - entry.quantity);
-            const logData = {
-              productId: entry.productId,
-              lotId,
-              modelId: entry.modelId,
-              quantity: entry.quantity,
-              remainingAfter: running,
-            };
-            if (type === "paint") await tx.paintConsumptionLog.create({ data: logData });
-            else if (type === "hardware") await tx.hardwareConsumptionLog.create({ data: logData });
-            else if (type === "packing") await tx.packingConsumptionLog.create({ data: logData });
-            else if (type === "edgebinding") await tx.edgeBindingConsumptionLog.create({ data: logData });
-            else await tx.glassConsumptionLog.create({ data: logData });
-          }
-        }
-      }
-
-      await writeMaterialConsumptionLogs(paintEntries, "paint");
-      await writeMaterialConsumptionLogs(hardwareEntries, "hardware");
-      await writeMaterialConsumptionLogs(packingEntries, "packing");
-      await writeMaterialConsumptionLogs(edgeBindingEntries, "edgebinding");
-      await writeMaterialConsumptionLogs(glassEntries, "glass");
 
       await tx.manufacturingLot.update({
         where: { id: lotId },

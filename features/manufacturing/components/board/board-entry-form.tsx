@@ -49,6 +49,8 @@ type BoardRowDraft = CreateBoardEntryInput & {
   presetLabel?: string;
 };
 
+const EMPTY_BOARD_PRESETS: ModelBoardPresetDto[] = [];
+
 const emptyRow = (): BoardRowDraft => ({
   boardInventoryId: "",
   length: 0,
@@ -107,7 +109,7 @@ export function BoardEntryForm({
   onSubmit,
   isPending,
   entry,
-  boardPresets = [],
+  boardPresets = EMPTY_BOARD_PRESETS,
 }: BoardEntryFormProps) {
   const { data: options } = useBoardOptions(open);
   const isEdit = !!entry;
@@ -150,7 +152,7 @@ export function BoardEntryForm({
     form.reset({ rows: [emptyRow()] });
     // options intentionally omitted: a later effect fills inventory matches without wiping edits
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when dialog context changes
-  }, [open, entry, boardPresets, form]);
+  }, [open, entry?.id, boardPresets, form.reset]);
 
   useEffect(() => {
     if (!open || entry || !options || boardPresets.length === 0) return;

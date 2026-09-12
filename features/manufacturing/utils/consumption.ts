@@ -68,8 +68,7 @@ export function getModelPaintTotal(model: ModelDto): number {
 }
 
 export function getModelHardwareTotal(model: ModelDto): number {
-  const perUnit = sumMaterialForModel(model.hardwareEntries);
-  return totalForModelQty(perUnit, model.quantity);
+  return sumMaterialForModel(model.hardwareEntries);
 }
 
 export function getModelPackingTotal(model: ModelDto): number {
@@ -112,12 +111,11 @@ export function groupHardwareConsumption(models: ModelDto[]): MaterialConsumptio
   for (const model of models) {
     for (const entry of model.hardwareEntries) {
       const key = entry.hardwareName;
-      const totalQty = totalForModelQty(entry.quantity, model.quantity);
       const existing = grouped.get(key);
       if (existing) {
-        existing.quantity = round2(existing.quantity + totalQty);
+        existing.quantity = round2(existing.quantity + entry.quantity);
       } else {
-        grouped.set(key, { quantity: totalQty, unit: entry.unit });
+        grouped.set(key, { quantity: round2(entry.quantity), unit: entry.unit });
       }
     }
   }

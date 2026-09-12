@@ -37,6 +37,7 @@ export function EdgeBindingTab({ lotId, model, readOnly }: EdgeBindingTabProps) 
     name: e.edgeBindingName,
     quantity: e.quantity,
     unit: e.unit,
+    createdAt: e.createdAt,
   }));
 
   const handleOpenChange = (next: boolean) => {

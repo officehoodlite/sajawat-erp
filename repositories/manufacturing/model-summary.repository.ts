@@ -104,7 +104,7 @@ export async function findCatalogModelLotSummaries(
       model.hardwareEntries.map((e) => ({
         label: e.hardwareProduct.name,
         unit: e.hardwareProduct.unit,
-        total: totalForModelQty(toNumber(e.quantity), qty),
+        total: round2(toNumber(e.quantity)),
       })),
       qty
     );

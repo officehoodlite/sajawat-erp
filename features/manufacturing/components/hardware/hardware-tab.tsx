@@ -37,6 +37,7 @@ export function HardwareTab({ lotId, model, readOnly }: HardwareTabProps) {
     name: e.hardwareName,
     quantity: e.quantity,
     unit: e.unit,
+    createdAt: e.createdAt,
   }));
 
   const handleOpenChange = (next: boolean) => {
@@ -81,8 +82,6 @@ export function HardwareTab({ lotId, model, readOnly }: HardwareTabProps) {
       <MaterialAddDialog
         title={editing ? "Edit Hardware" : "Add Hardware"}
         label="Hardware"
-        quantityHeader="Qty / unit"
-        quantityHint={`Per unit of model (× ${model.quantity} units = total stock deducted)`}
         open={open}
         onOpenChange={handleOpenChange}
         options={options}

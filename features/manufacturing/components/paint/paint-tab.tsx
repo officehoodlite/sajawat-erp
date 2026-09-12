@@ -39,6 +39,7 @@ export function PaintTab({ lotId, model, readOnly }: PaintTabProps) {
     name: e.paintName,
     quantity: e.quantity,
     unit: e.unit,
+    createdAt: e.createdAt,
   }));
 
   const handleOpenChange = (next: boolean) => {

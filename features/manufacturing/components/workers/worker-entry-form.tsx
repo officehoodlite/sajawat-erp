@@ -312,7 +312,7 @@ export function WorkerEntryForm({
     } else {
       form.reset({ rows: [emptyRow()] });
     }
-  }, [open, entry, form]);
+  }, [open, entry?.id, form.reset]);
 
   const handleSubmit = form.handleSubmit(
     async (data) => {

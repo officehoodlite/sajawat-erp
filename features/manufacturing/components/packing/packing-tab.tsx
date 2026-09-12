@@ -37,6 +37,7 @@ export function PackingTab({ lotId, model, readOnly }: PackingTabProps) {
     name: e.packingName,
     quantity: e.quantity,
     unit: e.unit,
+    createdAt: e.createdAt,
   }));
 
   const handleOpenChange = (next: boolean) => {

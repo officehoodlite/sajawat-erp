@@ -37,6 +37,7 @@ export function GlassTab({ lotId, model, readOnly }: GlassTabProps) {
     name: e.glassName,
     quantity: e.quantity,
     unit: e.unit,
+    createdAt: e.createdAt,
   }));
 
   const handleOpenChange = (next: boolean) => {

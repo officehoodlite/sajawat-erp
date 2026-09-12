@@ -5,7 +5,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
-import { formatNumber } from "@/utils/format";
+import { formatDate, formatNumber } from "@/utils/format";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +23,7 @@ export interface MaterialEntryRow {
   quantity: number;
   unit: string;
   productId: string;
+  createdAt?: string;
 }
 
 interface MaterialEntryTableProps {
@@ -43,6 +44,12 @@ export function MaterialEntryTable({
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const columns: ColumnDef<MaterialEntryRow>[] = [
+    {
+      accessorKey: "createdAt",
+      header: "Date",
+      cell: ({ row }) =>
+        row.original.createdAt ? formatDate(row.original.createdAt) : "—",
+    },
     {
       accessorKey: "name",
       header: nameHeader,

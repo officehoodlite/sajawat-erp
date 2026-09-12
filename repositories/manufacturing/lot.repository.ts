@@ -103,6 +103,7 @@ function mapModel(row: {
     modelId: string;
     paintProductId: string;
     quantity: unknown;
+    createdAt: Date;
     paintProduct: { name: string; unit: Unit };
   }>;
   hardwareEntries: Array<{
@@ -110,6 +111,7 @@ function mapModel(row: {
     modelId: string;
     hardwareProductId: string;
     quantity: unknown;
+    createdAt: Date;
     hardwareProduct: { name: string; unit: Unit };
   }>;
   packingEntries: Array<{
@@ -117,6 +119,7 @@ function mapModel(row: {
     modelId: string;
     packingProductId: string;
     quantity: unknown;
+    createdAt: Date;
     packingProduct: { name: string; unit: Unit };
   }>;
   edgeBindingEntries: Array<{
@@ -124,6 +127,7 @@ function mapModel(row: {
     modelId: string;
     edgeBindingProductId: string;
     quantity: unknown;
+    createdAt: Date;
     edgeBindingProduct: { name: string; unit: Unit };
   }>;
   glassEntries: Array<{
@@ -131,6 +135,7 @@ function mapModel(row: {
     modelId: string;
     glassProductId: string;
     quantity: unknown;
+    createdAt: Date;
     glassProduct: { name: string; unit: Unit };
   }>;
   boardPresets: Array<{
@@ -187,6 +192,7 @@ function mapModel(row: {
       paintName: e.paintProduct.name,
       quantity: toNumber(e.quantity),
       unit: e.paintProduct.unit,
+      createdAt: e.createdAt.toISOString(),
     })),
     hardwareEntries: row.hardwareEntries.map((e) => ({
       id: e.id,
@@ -195,6 +201,7 @@ function mapModel(row: {
       hardwareName: e.hardwareProduct.name,
       quantity: toNumber(e.quantity),
       unit: e.hardwareProduct.unit,
+      createdAt: e.createdAt.toISOString(),
     })),
     packingEntries: row.packingEntries.map((e) => ({
       id: e.id,
@@ -203,6 +210,7 @@ function mapModel(row: {
       packingName: e.packingProduct.name,
       quantity: toNumber(e.quantity),
       unit: e.packingProduct.unit,
+      createdAt: e.createdAt.toISOString(),
     })),
     edgeBindingEntries: row.edgeBindingEntries.map((e) => ({
       id: e.id,
@@ -211,6 +219,7 @@ function mapModel(row: {
       edgeBindingName: e.edgeBindingProduct.name,
       quantity: toNumber(e.quantity),
       unit: e.edgeBindingProduct.unit,
+      createdAt: e.createdAt.toISOString(),
     })),
     glassEntries: row.glassEntries.map((e) => ({
       id: e.id,
@@ -219,6 +228,7 @@ function mapModel(row: {
       glassName: e.glassProduct.name,
       quantity: toNumber(e.quantity),
       unit: e.glassProduct.unit,
+      createdAt: e.createdAt.toISOString(),
     })),
     boardPresets: row.boardPresets.map((p) => ({
       boardThicknessId: p.boardThicknessId,

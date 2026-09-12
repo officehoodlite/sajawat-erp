@@ -61,7 +61,7 @@ export function lotDetailToSummary(lot: LotDetailDto): LotSummaryDto {
   const hardwareEntries = lot.models.flatMap((m) =>
     m.hardwareEntries.map((e) => ({
       name: e.hardwareName,
-      quantity: totalForModelQty(e.quantity, m.quantity),
+      quantity: round2(e.quantity),
       unit: e.unit,
     }))
   );
@@ -102,7 +102,7 @@ export function lotDetailToSummary(lot: LotDetailDto): LotSummaryDto {
       m.hardwareEntries.map((e) => ({
         modelId: m.id,
         name: e.hardwareName,
-        quantity: totalForModelQty(e.quantity, m.quantity),
+        quantity: round2(e.quantity),
         unit: e.unit,
       }))
     )

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
@@ -67,6 +67,7 @@ interface MaterialAddDialogProps {
 }
 
 const emptyRow = (): MaterialRowValues => ({ inventoryId: "", quantity: Number.NaN });
+const EMPTY_PRESETS: MaterialPresetItem[] = [];
 
 export function MaterialAddDialog({
   title,
@@ -74,7 +75,7 @@ export function MaterialAddDialog({
   open,
   onOpenChange,
   options,
-  presetItems = [],
+  presetItems = EMPTY_PRESETS,
   editingEntry,
   onSubmit,
   isPending,
@@ -110,6 +111,8 @@ export function MaterialAddDialog({
     name: "rows",
   });
 
+  const watchedRows = useWatch({ control: form.control, name: "rows" });
+
   useEffect(() => {
     if (!open) return;
     if (editingEntry) {
@@ -133,7 +136,15 @@ export function MaterialAddDialog({
       return;
     }
     form.reset({ rows: [emptyRow()] });
-  }, [open, editingEntry, presetItems, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when dialog open/edit/preset context changes
+  }, [
+    open,
+    editingEntry?.id,
+    editingEntry?.inventoryId,
+    editingEntry?.quantity,
+    presetItems,
+    form.reset,
+  ]);
 
   const handleSubmit = form.handleSubmit(async (data) => {
     onOpenChange(false);
@@ -166,8 +177,13 @@ export function MaterialAddDialog({
                 >
                   <div className="space-y-1">
                     <Select
-                      value={form.watch(`rows.${index}.inventoryId`) || null}
-                      onValueChange={(v) => form.setValue(`rows.${index}.inventoryId`, v ?? "")}
+                      value={watchedRows?.[index]?.inventoryId || null}
+                      onValueChange={(v) =>
+                        form.setValue(`rows.${index}.inventoryId`, v ?? "", {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
                       items={selectItems}
                     >
                       <SelectTrigger className="w-full">

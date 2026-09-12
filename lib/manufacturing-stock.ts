@@ -163,6 +163,82 @@ export async function adjustMaterialStock(
   }
 }
 
+export async function writeMaterialConsumptionLog(
+  tx: Tx,
+  type: MaterialType,
+  data: { productId: string; lotId: string; modelId: string; quantity: number }
+) {
+  const product = await getMaterialProduct(tx, type, data.productId);
+  if (!product) throw new Error("Product not found");
+
+  const logData = {
+    productId: data.productId,
+    lotId: data.lotId,
+    modelId: data.modelId,
+    quantity: roundDecimal(data.quantity),
+    remainingAfter: roundDecimal(toNumber(product.remainingStock)),
+  };
+
+  if (type === "paint") await tx.paintConsumptionLog.create({ data: logData });
+  else if (type === "hardware") await tx.hardwareConsumptionLog.create({ data: logData });
+  else if (type === "packing") await tx.packingConsumptionLog.create({ data: logData });
+  else if (type === "edgebinding") await tx.edgeBindingConsumptionLog.create({ data: logData });
+  else await tx.glassConsumptionLog.create({ data: logData });
+}
+
+/** Removes the most recent matching consumption log for an entry (model + product + qty). */
+export async function removeMaterialConsumptionLog(
+  tx: Tx,
+  type: MaterialType,
+  modelId: string,
+  productId: string,
+  quantity: number
+) {
+  const where = {
+    modelId,
+    productId,
+    quantity: roundDecimal(quantity),
+  };
+
+  if (type === "paint") {
+    const row = await tx.paintConsumptionLog.findFirst({
+      where,
+      orderBy: { consumedAt: "desc" },
+    });
+    if (row) await tx.paintConsumptionLog.delete({ where: { id: row.id } });
+    return;
+  }
+  if (type === "hardware") {
+    const row = await tx.hardwareConsumptionLog.findFirst({
+      where,
+      orderBy: { consumedAt: "desc" },
+    });
+    if (row) await tx.hardwareConsumptionLog.delete({ where: { id: row.id } });
+    return;
+  }
+  if (type === "packing") {
+    const row = await tx.packingConsumptionLog.findFirst({
+      where,
+      orderBy: { consumedAt: "desc" },
+    });
+    if (row) await tx.packingConsumptionLog.delete({ where: { id: row.id } });
+    return;
+  }
+  if (type === "edgebinding") {
+    const row = await tx.edgeBindingConsumptionLog.findFirst({
+      where,
+      orderBy: { consumedAt: "desc" },
+    });
+    if (row) await tx.edgeBindingConsumptionLog.delete({ where: { id: row.id } });
+    return;
+  }
+  const row = await tx.glassConsumptionLog.findFirst({
+    where,
+    orderBy: { consumedAt: "desc" },
+  });
+  if (row) await tx.glassConsumptionLog.delete({ where: { id: row.id } });
+}
+
 export async function assertBoardInventoryAvailable(
   tx: Tx,
   boardInventoryId: string,
