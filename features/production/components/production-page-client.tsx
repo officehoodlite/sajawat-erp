@@ -46,11 +46,6 @@ import {
   useUpdateProductionEntry,
 } from "@/features/production/hooks/use-production";
 import type { ProductionEntryDto, ProductionLotModelDto } from "@/types/dto";
-import {
-  PRODUCTION_STAGE_LABELS,
-  PRODUCTION_STAGE_OPTIONS,
-  type ProductionStage,
-} from "@/types/enums";
 import { formatNumber } from "@/utils/format";
 import { downloadCsv } from "@/lib/csv-download";
 import { formatPartsDisplay } from "@/lib/production-parts";
@@ -555,7 +550,7 @@ export function ProductionPageClient() {
 
       <ErpPageSection title="In-Production entries">
         <div className="mb-4 space-y-3">
-          <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="flex flex-nowrap items-end gap-3 overflow-x-auto [&_button]:h-9 [&_input]:h-9 [&>*]:min-w-[9.5rem] [&>*]:flex-1">
             <div className="space-y-2">
               <Label required>Filter</Label>
               <Select
@@ -841,7 +836,6 @@ function ProductionEntryDialog({
   const [details, setDetails] = useState(entry?.details ?? "");
   const [statusText, setStatusText] = useState(entry?.statusText ?? "");
   const [description, setDescription] = useState(entry?.description ?? "");
-  const [stage, setStage] = useState<ProductionStage>(entry?.stage ?? "CARPENTRY");
   const [initialQty, setInitialQty] = useState(entry?.quantity ?? 1);
 
   const { data: lotLookup, isFetching: lotLoading } = useProductionLotLookup(
@@ -884,7 +878,6 @@ function ProductionEntryDialog({
     setDetails(entry?.details ?? "");
     setStatusText(entry?.statusText ?? "");
     setDescription(entry?.description ?? "");
-    setStage(entry?.stage ?? "CARPENTRY");
     setInitialQty(entry?.quantity ?? 1);
   }, [open, entry, defaultWorkDate]);
 
@@ -921,7 +914,6 @@ function ProductionEntryDialog({
         statusText: statusText.trim() || null,
         description: description.trim() || null,
         workDate,
-        stage,
         carpentryQty: initialQty,
       });
       return;
@@ -936,7 +928,6 @@ function ProductionEntryDialog({
       statusText: statusText.trim() || undefined,
       description: description.trim() || undefined,
       workDate,
-      stage,
       carpentryQty: initialQty,
       paintingReadyQty: 0,
       paintingStatusQty: 0,
@@ -1083,32 +1074,6 @@ function ProductionEntryDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional"
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label required>Stage</Label>
-            <Select
-              value={stage}
-              onValueChange={(v) => setStage((v as ProductionStage) ?? "CARPENTRY")}
-              items={PRODUCTION_STAGE_OPTIONS.map((s) => ({
-                value: s,
-                label: PRODUCTION_STAGE_LABELS[s],
-              }))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PRODUCTION_STAGE_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {PRODUCTION_STAGE_LABELS[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Changing stage does not change quantities.
-            </p>
           </div>
 
           <div className="space-y-2">

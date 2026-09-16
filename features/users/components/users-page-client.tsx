@@ -17,13 +17,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   useCreateUser,
   useCurrentUser,
   useUpdateUser,
@@ -41,16 +34,12 @@ export function UsersPageClient() {
   const [editing, setEditing] = useState<UserDto | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"ADMIN" | "USER">("USER");
-  const [workerPrices, setWorkerPrices] = useState(false);
   const [isActive, setIsActive] = useState(true);
 
   const openCreate = () => {
     setEditing(null);
     setUsername("");
     setPassword("");
-    setRole("USER");
-    setWorkerPrices(false);
     setIsActive(true);
     setOpen(true);
   };
@@ -59,8 +48,6 @@ export function UsersPageClient() {
     setEditing(user);
     setUsername(user.username);
     setPassword("");
-    setRole(user.role);
-    setWorkerPrices(user.workerPrices);
     setIsActive(user.isActive);
     setOpen(true);
   };
@@ -73,8 +60,6 @@ export function UsersPageClient() {
           id: editing.id,
           username: username.trim(),
           ...(password ? { password } : {}),
-          role,
-          workerPrices: role === "ADMIN" ? true : workerPrices,
           isActive,
         });
       } else {
@@ -82,8 +67,8 @@ export function UsersPageClient() {
         await createUser.mutateAsync({
           username: username.trim(),
           password,
-          role,
-          workerPrices: role === "ADMIN" ? true : workerPrices,
+          role: "USER",
+          workerPrices: false,
           isActive,
         });
       }
@@ -95,16 +80,6 @@ export function UsersPageClient() {
 
   const columns: ColumnDef<UserDto>[] = [
     { accessorKey: "username", header: "Username" },
-    {
-      accessorKey: "role",
-      header: "Role",
-      cell: ({ row }) => (row.original.role === "ADMIN" ? "Admin" : "User"),
-    },
-    {
-      accessorKey: "workerPrices",
-      header: "Worker price",
-      cell: ({ row }) => (row.original.workerPrices ? "Yes" : "No"),
-    },
     {
       accessorKey: "isActive",
       header: "Status",
@@ -132,7 +107,7 @@ export function UsersPageClient() {
 
   return (
     <ErpPage>
-      <PageHeader title="Users" description="Create logins and choose which features each person can use.">
+      <PageHeader title="Users" description="Create logins. New users are standard users by default.">
         <Button size="sm" onClick={openCreate}>
           <Plus className="mr-2 size-4" />
           Add user
@@ -170,33 +145,6 @@ export function UsersPageClient() {
                 autoComplete="new-password"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Select
-                value={role}
-                onValueChange={(v) => setRole((v as "ADMIN" | "USER") ?? "USER")}
-                items={[
-                  { value: "USER", label: "User" },
-                  { value: "ADMIN", label: "Admin" },
-                ]}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USER">User</SelectItem>
-                  <SelectItem value="ADMIN">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={role === "ADMIN" || workerPrices}
-                disabled={role === "ADMIN"}
-                onCheckedChange={(v) => setWorkerPrices(v === true)}
-              />
-              Worker price — see and edit labor rates and totals
-            </label>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={isActive} onCheckedChange={(v) => setIsActive(v === true)} />
               Active
