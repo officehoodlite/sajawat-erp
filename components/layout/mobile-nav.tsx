@@ -51,9 +51,9 @@ export function MobileNav() {
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-sidebar/90 px-4 backdrop-blur-md md:hidden">
       <div className="flex items-center gap-2.5">
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-[10px] font-semibold text-primary-foreground">
-          SJ
+          ER
         </div>
-        <span className="text-[13px] font-semibold tracking-tight">Sajawat</span>
+        <span className="text-[13px] font-semibold tracking-tight">ERP</span>
       </div>
 
       <div className="flex items-center gap-0.5">

@@ -42,11 +42,11 @@ export function Sidebar() {
     <aside className="sticky top-0 z-20 hidden h-dvh min-h-0 w-[15.5rem] shrink-0 border-r border-sidebar-border bg-sidebar md:flex md:flex-col">
       <div className="flex h-[3.75rem] shrink-0 items-center gap-3 px-5">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-[11px] font-semibold tracking-tight text-primary-foreground">
-          SJ
+          ER
         </div>
         <div className="min-w-0">
           <span className="block truncate text-[13px] font-semibold tracking-tight text-foreground">
-            Sajawat
+            ERP
           </span>
           <span className="block truncate text-[11px] text-muted-foreground">ERP Workspace</span>
         </div>

@@ -75,10 +75,10 @@ export default function LoginPage() {
           <div className="relative flex h-full min-h-0 flex-col justify-between px-10 py-8 xl:px-14 xl:py-10">
             <div className="flex shrink-0 items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-[11px] font-semibold tracking-tight text-[#0f766e]">
-                SJ
+                ER
               </div>
               <div>
-                <p className="text-[13px] font-semibold tracking-tight text-white">Sajawat</p>
+                <p className="text-[13px] font-semibold tracking-tight text-white">ERP</p>
                 <p className="text-[11px] text-white/50">ERP Workspace</p>
               </div>
             </div>
@@ -132,9 +132,9 @@ export default function LoginPage() {
               <div className="mb-8 lg:hidden">
                 <div className="mb-5 flex items-center gap-2.5">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-[10px] font-semibold text-primary-foreground">
-                    SJ
+                    ER
                   </div>
-                  <span className="text-[13px] font-semibold tracking-tight">Sajawat</span>
+                  <span className="text-[13px] font-semibold tracking-tight">ERP</span>
                 </div>
                 <h1 className="text-[1.5rem] font-semibold tracking-tight text-foreground">
                   Sign in

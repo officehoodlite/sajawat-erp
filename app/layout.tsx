@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sajawat ERP — Manufacturing",
+  title: "ERP — Manufacturing",
   description: "Furniture Inventory Management — Manufacturing Module",
 };
 
