@@ -928,6 +928,7 @@ function ProductionEntryDialog({
       statusText: statusText.trim() || undefined,
       description: description.trim() || undefined,
       workDate,
+      stage: "CARPENTRY",
       carpentryQty: initialQty,
       paintingReadyQty: 0,
       paintingStatusQty: 0,
