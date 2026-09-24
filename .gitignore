@@ -30,6 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# Postgres TLS certs generated on the server
+/deploy/postgres/ssl/
+
 # env files (keep .env.example commit-able)
 .env
 .env.local

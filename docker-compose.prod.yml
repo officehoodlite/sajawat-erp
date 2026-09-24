@@ -1,0 +1,57 @@
+# Production: Postgres and Redis on this VPS only.
+# Ports are bound to 127.0.0.1 so they are not reachable from the internet.
+# Named volumes keep data across container recreates. Never run `docker compose down -v`.
+name: sajawat
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sajawat-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/ssl:/ssl-in:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -e
+        cp /ssl-in/server.crt /tmp/server.crt
+        cp /ssl-in/server.key /tmp/server.key
+        chown postgres:postgres /tmp/server.crt /tmp/server.key
+        chmod 600 /tmp/server.key
+        exec docker-entrypoint.sh postgres \
+          -c ssl=on \
+          -c ssl_cert_file=/tmp/server.crt \
+          -c ssl_key_file=/tmp/server.key
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: sajawat-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres_data:
+    name: sajawat_postgres_data
+  redis_data:
+    name: sajawat_redis_data
