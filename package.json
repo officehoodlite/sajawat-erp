@@ -10,6 +10,7 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:reset-admin": "tsx scripts/reset-admin.ts",
     "db:reconcile-board": "tsx scripts/reconcile-board-stock.ts",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate"
