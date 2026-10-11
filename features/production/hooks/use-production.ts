@@ -33,14 +33,18 @@ function listUrl(filter: ProductionListQuery) {
   if (filter.mode === "lot") {
     return `/api/production?mode=lot&lotId=${encodeURIComponent(filter.lotId)}`;
   }
-  return `/api/production?mode=model&catalogModelId=${encodeURIComponent(filter.catalogModelId)}`;
+  if (filter.mode === "model") {
+    return `/api/production?mode=model&catalogModelId=${encodeURIComponent(filter.catalogModelId)}`;
+  }
+  return `/api/production?mode=product&productId=${encodeURIComponent(filter.productId)}`;
 }
 
 function listQueryKey(filter: ProductionListQuery) {
   if (filter.mode === "all") return queryKeys.production.allEntries;
   if (filter.mode === "date") return queryKeys.production.byDate(filter.date);
   if (filter.mode === "lot") return queryKeys.production.byLot(filter.lotId);
-  return queryKeys.production.byModel(filter.catalogModelId);
+  if (filter.mode === "model") return queryKeys.production.byModel(filter.catalogModelId);
+  return queryKeys.production.byProduct(filter.productId);
 }
 
 export function useProductionList(filter: ProductionListQuery | null, enabled = true) {

@@ -517,6 +517,36 @@ export interface ProductionLotModelDto {
   remainingCapacityByPart: ProductionPartRemainingDto[];
 }
 
+export interface ProductSummaryModelOptionDto {
+  catalogModelId: string;
+  modelName: string;
+  modelNumber: string;
+  size: string;
+}
+
+export interface ProductSummaryRowDto {
+  productName: string;
+  modelNumber: string;
+  size: string;
+  modelName: string;
+  lotId: string;
+  lotNumber: string;
+  quantity: number;
+  boards: ModelLotMaterialLineDto[];
+  paints: ModelLotMaterialLineDto[];
+  hardware: ModelLotMaterialLineDto[];
+  packing: ModelLotMaterialLineDto[];
+  edgeBinding: ModelLotMaterialLineDto[];
+  glass: ModelLotMaterialLineDto[];
+}
+
+export interface ProductSummaryDto {
+  productId: string;
+  productName: string;
+  models: ProductSummaryModelOptionDto[];
+  rows: ProductSummaryRowDto[];
+}
+
 export interface ProductionSuggestionsDto {
   details: string[];
   statuses: string[];

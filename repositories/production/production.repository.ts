@@ -288,8 +288,17 @@ export class ProductionRepository {
       return rows.filter(isActiveEntry).map(mapEntry);
     }
 
+    if (query.mode === "model") {
+      const rows = await prisma.productionEntry.findMany({
+        where: { manufacturingModel: { catalogModelId: query.catalogModelId } },
+        include: entryInclude,
+        orderBy: [{ workDate: "desc" }, { createdAt: "desc" }],
+      });
+      return rows.filter(isActiveEntry).map(mapEntry);
+    }
+
     const rows = await prisma.productionEntry.findMany({
-      where: { manufacturingModel: { catalogModelId: query.catalogModelId } },
+      where: { manufacturingModel: { productId: query.productId } },
       include: entryInclude,
       orderBy: [{ workDate: "desc" }, { createdAt: "desc" }],
     });

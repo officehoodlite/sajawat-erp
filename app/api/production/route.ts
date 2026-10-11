@@ -20,11 +20,12 @@ export async function GET(request: NextRequest) {
       date: sp.get("date") ?? undefined,
       lotId: sp.get("lotId") ?? undefined,
       catalogModelId: sp.get("catalogModelId") ?? undefined,
+      productId: sp.get("productId") ?? undefined,
     });
     if (!parsed.success) {
       return errorResponse(
         parsed.error.issues[0]?.message ??
-          "Provide mode=all, mode=date&date=, mode=lot&lotId=, or mode=model&catalogModelId=",
+          "Provide mode=all, mode=date&date=, mode=lot&lotId=, mode=model&catalogModelId=, or mode=product&productId=",
         400
       );
     }

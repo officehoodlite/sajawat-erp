@@ -56,7 +56,15 @@ import type {
   UpdateProductionEntryInput,
 } from "@/validators/production";
 
-type FilterMode = "all" | "date" | "lot" | "model";
+type FilterMode = "all" | "date" | "lot" | "model" | "product";
+
+const FILTER_MODES: { value: FilterMode; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "date", label: "Date" },
+  { value: "lot", label: "LOT wise" },
+  { value: "model", label: "Model wise" },
+  { value: "product", label: "Product wise" },
+];
 
 function todayInput() {
   return new Date().toISOString().slice(0, 10);
@@ -285,7 +293,9 @@ export function ProductionPageClient() {
   const [statusContains, setStatusContains] = useState("");
 
   const { data: lotsPage } = useLots(1, 50, lotSearch);
-  const { data: catalogProducts = [] } = useCatalogProductPicker(filterMode === "model");
+  const { data: catalogProducts = [] } = useCatalogProductPicker(
+    filterMode === "model" || filterMode === "product"
+  );
 
   const catalogModels = useMemo(() => {
     const product = catalogProducts.find((p) => p.id === selectedProductId);
@@ -302,10 +312,13 @@ export function ProductionPageClient() {
     if (filterMode === "lot") {
       return selectedLotId ? { mode: "lot", lotId: selectedLotId } : null;
     }
+    if (filterMode === "product") {
+      return selectedProductId ? { mode: "product", productId: selectedProductId } : null;
+    }
     return selectedCatalogModelId
       ? { mode: "model", catalogModelId: selectedCatalogModelId }
       : null;
-  }, [filterMode, filterDate, selectedLotId, selectedCatalogModelId]);
+  }, [filterMode, filterDate, selectedLotId, selectedCatalogModelId, selectedProductId]);
 
   const { data, isFetching, isError, error } = useProductionList(listFilter);
   const entries = data?.entries ?? [];
@@ -467,6 +480,10 @@ export function ProductionPageClient() {
           ? selectedLotId
             ? "No active entries for this lot"
             : "Select a lot"
+          : filterMode === "product"
+          ? selectedProductId
+            ? "No active entries for this product"
+            : "Select a product"
           : selectedCatalogModelId
             ? "No active entries for this model"
             : "Select a model";
@@ -475,7 +492,7 @@ export function ProductionPageClient() {
     <ErpPage>
       <PageHeader
         title="In-Production"
-        description="Track production progress by date, lot, catalog model, or all lots. Completed lines hide when Done Out reaches Initial Qty."
+        description="Track production progress by date, lot, model, product, or all lots. Completed lines hide when Done Out reaches Initial Qty."
       >
         <Button
           type="button"
@@ -489,8 +506,11 @@ export function ProductionPageClient() {
                   ? filterDate
                   : filterMode === "lot"
                     ? lotsPage?.items.find((lot) => lot.id === selectedLotId)?.lotNumber ?? "lot"
-                    : catalogModels.find((model) => model.id === selectedCatalogModelId)?.modelName ??
-                      "model";
+                    : filterMode === "product"
+                      ? catalogProducts.find((product) => product.id === selectedProductId)?.name ??
+                        "product"
+                      : catalogModels.find((model) => model.id === selectedCatalogModelId)?.modelName ??
+                        "model";
             downloadCsv(`in-production-${filterMode}-${filterLabel}.csv`, [
               [
                 ...(showDateColumn ? ["Date"] : []),
@@ -550,33 +570,26 @@ export function ProductionPageClient() {
 
       <ErpPageSection title="In-Production entries">
         <div className="mb-4 space-y-3">
-          <div className="flex flex-nowrap items-end gap-3 overflow-x-auto [&_button]:h-9 [&_input]:h-9 [&>*]:min-w-[9.5rem] [&>*]:flex-1">
-            <div className="space-y-2">
-              <Label required>Filter</Label>
-              <Select
-                value={filterMode}
-                onValueChange={(v) => setFilterMode((v as FilterMode) ?? "date")}
-                items={[
-                  { value: "all", label: "All" },
-                  { value: "date", label: "Date" },
-                  { value: "lot", label: "LOT wise" },
-                  { value: "model", label: "Model wise" },
-                ]}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="date">Date</SelectItem>
-                  <SelectItem value="lot">LOT wise</SelectItem>
-                  <SelectItem value="model">Model wise</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="flex flex-nowrap items-end gap-3 overflow-x-auto pb-1 [&_button]:h-9 [&_input]:h-9">
+            <div className="shrink-0 space-y-2">
+              <Label>Filter</Label>
+              <div className="flex flex-nowrap gap-1">
+                {FILTER_MODES.map((mode) => (
+                  <Button
+                    key={mode.value}
+                    type="button"
+                    variant={filterMode === mode.value ? "default" : "outline"}
+                    className="whitespace-nowrap px-3"
+                    onClick={() => setFilterMode(mode.value)}
+                  >
+                    {mode.label}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             {filterMode === "date" ? (
-              <div className="space-y-2">
+              <div className="w-44 shrink-0 space-y-2">
                 <Label htmlFor="filterDate" required>
                   Date
                 </Label>
@@ -592,7 +605,7 @@ export function ProductionPageClient() {
 
             {filterMode === "lot" ? (
               <>
-                <div className="space-y-2">
+                <div className="w-44 shrink-0 space-y-2">
                   <Label htmlFor="lotSearch">Search lot</Label>
                   <Input
                     id="lotSearch"
@@ -602,7 +615,7 @@ export function ProductionPageClient() {
                     className="w-full"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="w-44 shrink-0 space-y-2">
                   <Label required>Lot</Label>
                   <Select
                     value={selectedLotId || null}
@@ -629,7 +642,7 @@ export function ProductionPageClient() {
 
             {filterMode === "model" ? (
               <>
-                <div className="space-y-2">
+                <div className="w-48 shrink-0 space-y-2">
                   <Label required>Product</Label>
                   <Select
                     value={selectedProductId || null}
@@ -654,7 +667,7 @@ export function ProductionPageClient() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
+                <div className="w-48 shrink-0 space-y-2">
                   <Label required>Model</Label>
                   <Select
                     value={selectedCatalogModelId || null}
@@ -688,7 +701,32 @@ export function ProductionPageClient() {
               </>
             ) : null}
 
-            <div className="space-y-2">
+            {filterMode === "product" ? (
+              <div className="w-48 shrink-0 space-y-2">
+                <Label required>Product</Label>
+                <Select
+                  value={selectedProductId || null}
+                  onValueChange={(v) => setSelectedProductId(v ?? "")}
+                  items={catalogProducts.map((p) => ({
+                    value: p.id,
+                    label: p.name,
+                  }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {catalogProducts.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            <div className="w-40 shrink-0 space-y-2">
               <Label>Status</Label>
               <Select
                 value={statusFilter}
@@ -715,7 +753,7 @@ export function ProductionPageClient() {
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="w-44 shrink-0 space-y-2">
               <Label htmlFor="statusContains">Status contains</Label>
               <Input
                 id="statusContains"

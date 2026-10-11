@@ -188,13 +188,13 @@ export function ProductsTab({ type }: ProductsTabProps) {
           if (!open) setSelectedFamily(null);
         }}
       >
-        <SheetContent className="w-full gap-0 p-6 sm:max-w-md">
-          <SheetHeader className="px-0">
+        <SheetContent className="flex h-full w-full flex-col gap-0 overflow-hidden p-6 sm:max-w-md">
+          <SheetHeader className="shrink-0 px-0">
             <SheetTitle>
               {selectedFamily?.name} — {label} items
             </SheetTitle>
           </SheetHeader>
-          <div className="mt-6 space-y-4">
+          <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1">
             {productsLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full rounded-xl" />

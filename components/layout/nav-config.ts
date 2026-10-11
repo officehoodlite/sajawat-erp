@@ -1,4 +1,5 @@
 import {
+  Boxes,
   ClipboardList,
   Factory,
   HardHat,
@@ -22,6 +23,7 @@ export const navSections = [
       { href: "/manufacturing/workers", label: "Workers", icon: HardHat },
       { href: "/production", label: "In-Production", icon: Workflow },
       { href: "/model-summary", label: "Model Summary", icon: ClipboardList },
+      { href: "/product-summary", label: "Product Summary", icon: Boxes },
     ],
   },
   {

@@ -104,6 +104,10 @@ export const productionListQuerySchema = z.discriminatedUnion("mode", [
     mode: z.literal("model"),
     catalogModelId: z.string().min(1).max(64),
   }),
+  z.object({
+    mode: z.literal("product"),
+    productId: z.string().min(1).max(64),
+  }),
 ]);
 
 export type CreateProductionEntryInput = z.infer<typeof createProductionEntrySchema>;
