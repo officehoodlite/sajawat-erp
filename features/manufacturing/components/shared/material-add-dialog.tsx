@@ -13,13 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { DECIMAL_INPUT_STEP } from "@/lib/decimal";
 import { positiveNumber } from "@/validators/inventory";
 
@@ -176,27 +170,18 @@ export function MaterialAddDialog({
                   className="grid grid-cols-[1fr_120px_36px] gap-3 border-b px-3 py-3 last:border-b-0"
                 >
                   <div className="space-y-1">
-                    <Select
+                    <SearchableSelect
                       value={watchedRows?.[index]?.inventoryId || null}
                       onValueChange={(v) =>
-                        form.setValue(`rows.${index}.inventoryId`, v ?? "", {
+                        form.setValue(`rows.${index}.inventoryId`, v, {
                           shouldDirty: true,
                           shouldValidate: true,
                         })
                       }
                       items={selectItems}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mergedOptions.map((opt) => (
-                          <SelectItem key={opt.id} value={opt.id}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder={`Select ${label.toLowerCase()}`}
+                      searchPlaceholder={`Search ${label.toLowerCase()}...`}
+                    />
                     {form.formState.errors.rows?.[index]?.inventoryId && (
                       <p className="text-xs text-destructive">
                         {form.formState.errors.rows[index]?.inventoryId?.message}

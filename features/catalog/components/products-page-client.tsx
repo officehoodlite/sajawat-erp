@@ -87,7 +87,11 @@ export function ProductsPageClient() {
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return products;
-    return products.filter((p) => p.name.toLowerCase().includes(q));
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.models.some((model) => model.modelName.toLowerCase().includes(q))
+    );
   }, [products, search]);
 
   const activeProduct = products.find((p) => p.id === selectedId) ?? null;

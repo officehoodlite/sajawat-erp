@@ -109,7 +109,7 @@ export function ManufacturingPageClient() {
               setSearch(value);
               setPage(1);
             },
-            placeholder: "Search lots by number...",
+            placeholder: "Search lots, products, or models...",
           }}
           actions={
             <Button onClick={() => setCreateOpen(true)}>

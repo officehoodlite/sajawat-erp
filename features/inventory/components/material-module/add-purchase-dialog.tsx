@@ -13,13 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SupplierSelect } from "@/features/inventory/components/shared/supplier-select";
 import type { MaterialModuleType } from "@/types/enums";
 import { MATERIAL_MODULE_LABELS } from "@/types/enums";
@@ -102,22 +96,13 @@ export function AddPurchaseDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label required>Product</Label>
-            <Select
+            <SearchableSelect
               value={form.watch("productId") || null}
-              onValueChange={(v) => form.setValue("productId", v ?? "")}
+              onValueChange={(v) => form.setValue("productId", v)}
               items={products.map((p) => ({ value: p.id, label: p.displayName }))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select product" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.displayName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Select product"
+              searchPlaceholder="Search products..."
+            />
             {form.formState.errors.productId && (
               <p className="text-sm text-destructive">{form.formState.errors.productId.message}</p>
             )}

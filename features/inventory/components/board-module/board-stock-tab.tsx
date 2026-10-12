@@ -22,14 +22,26 @@ import { formatNumber } from "@/utils/format";
 
 export function BoardStockTab() {
   const [purchaseOpen, setPurchaseOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const { data, isLoading } = useBoardStock();
   const { data: thicknessOptions } = useThicknessOptions(purchaseOpen);
   const createPurchase = useCreateBoardInventory();
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const rows = data ?? [];
+    if (!q) return rows;
+    return rows.filter(
+      (row) =>
+        row.materialName.toLowerCase().includes(q) ||
+        row.thickness.toLowerCase().includes(q)
+    );
+  }, [data, search]);
+
   const paginated = useMemo(
-    () => paginateClient(data ?? [], page, PAGE_SIZE),
-    [data, page]
+    () => paginateClient(filtered, page, PAGE_SIZE),
+    [filtered, page]
   );
 
   const columns: ColumnDef<BoardStockDto>[] = [
@@ -64,6 +76,14 @@ export function BoardStockTab() {
   return (
     <div className="space-y-4">
       <PageToolbar
+        search={{
+          value: search,
+          onChange: (value) => {
+            setSearch(value);
+            setPage(1);
+          },
+          placeholder: "Search boards...",
+        }}
         actions={
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" onClick={handleExport}>

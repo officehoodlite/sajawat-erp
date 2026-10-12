@@ -29,12 +29,22 @@ export async function GET(request: NextRequest) {
     }
 
     const { page, limit, search, skip } = pagination;
+    const q = search.toLowerCase();
     const filtered = search
-      ? products.filter((p) =>
-          "name" in p
-            ? String(p.name).toLowerCase().includes(search.toLowerCase())
-            : true
-        )
+      ? products.filter((p) => {
+          if (!("name" in p)) return true;
+          if (String(p.name).toLowerCase().includes(q)) return true;
+          if ("models" in p && Array.isArray(p.models)) {
+            return p.models.some(
+              (model) =>
+                model &&
+                typeof model === "object" &&
+                "modelName" in model &&
+                String(model.modelName).toLowerCase().includes(q)
+            );
+          }
+          return false;
+        })
       : products;
     const total = filtered.length;
     const items = filtered.slice(skip, skip + limit);

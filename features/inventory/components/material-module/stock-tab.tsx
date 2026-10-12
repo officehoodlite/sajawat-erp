@@ -28,14 +28,26 @@ interface StockTabProps {
 
 export function StockTab({ type }: StockTabProps) {
   const [purchaseOpen, setPurchaseOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const { data, isLoading } = useMaterialStock(type);
   const { data: productsData } = useActiveMaterialProducts(type, purchaseOpen);
   const createPurchase = useCreateMaterialPurchase(type);
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const rows = data ?? [];
+    if (!q) return rows;
+    return rows.filter(
+      (row) =>
+        row.displayName.toLowerCase().includes(q) ||
+        (row.brand ?? "").toLowerCase().includes(q)
+    );
+  }, [data, search]);
+
   const paginated = useMemo(
-    () => paginateClient(data ?? [], page, PAGE_SIZE),
-    [data, page]
+    () => paginateClient(filtered, page, PAGE_SIZE),
+    [filtered, page]
   );
 
   const columns: ColumnDef<MaterialStockDto>[] = [
@@ -90,6 +102,14 @@ export function StockTab({ type }: StockTabProps) {
   return (
     <div className="space-y-4">
       <PageToolbar
+        search={{
+          value: search,
+          onChange: (value) => {
+            setSearch(value);
+            setPage(1);
+          },
+          placeholder: "Search products...",
+        }}
         actions={
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" onClick={handleExport}>

@@ -19,7 +19,11 @@ export function ModelSummaryProductsClient() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return products;
-    return products.filter((p) => p.name.toLowerCase().includes(q));
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.models.some((model) => model.modelName.toLowerCase().includes(q))
+    );
   }, [products, search]);
 
   const columns: ColumnDef<CatalogProductDetailDto>[] = [

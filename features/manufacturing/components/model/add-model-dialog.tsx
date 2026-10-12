@@ -12,13 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useCatalogProductPicker } from "@/features/catalog/hooks/use-catalog-products";
 import { createModelSchema, type CreateModelInput } from "@/validators/manufacturing";
 import { useCreateModel } from "@/features/manufacturing/hooks/use-manufacturing";
@@ -77,22 +71,13 @@ export function AddModelDialog({ lotId, open, onOpenChange, disabled }: AddModel
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label required>Product Type</Label>
-            <Select
+            <SearchableSelect
               value={productId || null}
-              onValueChange={(v) => form.setValue("productId", v ?? "", { shouldValidate: true })}
+              onValueChange={(v) => form.setValue("productId", v, { shouldValidate: true })}
               items={products.map((p) => ({ value: p.id, label: p.name }))}
-            >
-              <SelectTrigger className="w-full min-w-0">
-                <SelectValue placeholder="Select product type" />
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false} align="start">
-                {products.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Select product type"
+              searchPlaceholder="Search products..."
+            />
             {form.formState.errors.productId && (
               <p className="text-sm text-destructive">{form.formState.errors.productId.message}</p>
             )}
@@ -100,28 +85,17 @@ export function AddModelDialog({ lotId, open, onOpenChange, disabled }: AddModel
 
           <div className="space-y-2">
             <Label required>Model</Label>
-            <Select
+            <SearchableSelect
               value={catalogModelId || null}
-              onValueChange={(v) =>
-                form.setValue("catalogModelId", v ?? "", { shouldValidate: true })
-              }
+              onValueChange={(v) => form.setValue("catalogModelId", v, { shouldValidate: true })}
               items={catalogModels.map((m) => ({
                 value: m.id,
                 label: m.modelName,
               }))}
               disabled={!productId}
-            >
-              <SelectTrigger className="w-full min-w-0">
-                <SelectValue placeholder={productId ? "Select model" : "Select product first"} />
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false} align="start">
-                {catalogModels.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.modelName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder={productId ? "Select model" : "Select product first"}
+              searchPlaceholder="Search models..."
+            />
             {form.formState.errors.catalogModelId && (
               <p className="text-sm text-destructive">
                 {form.formState.errors.catalogModelId.message}

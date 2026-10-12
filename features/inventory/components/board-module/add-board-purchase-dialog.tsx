@@ -12,13 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SupplierSelect } from "@/features/inventory/components/shared/supplier-select";
 import {
   createBoardInventorySchema,
@@ -80,22 +74,13 @@ export function AddBoardPurchaseDialog({
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
             <Label required>Board + Thickness</Label>
-            <Select
+            <SearchableSelect
               value={form.watch("boardThicknessId") || null}
-              onValueChange={(v) => form.setValue("boardThicknessId", v ?? "")}
+              onValueChange={(v) => form.setValue("boardThicknessId", v)}
               items={thicknessOptions.map((opt) => ({ value: opt.id, label: opt.label }))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select board and thickness" />
-              </SelectTrigger>
-              <SelectContent>
-                {thicknessOptions.map((opt) => (
-                  <SelectItem key={opt.id} value={opt.id}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Select board and thickness"
+              searchPlaceholder="Search boards..."
+            />
             {form.formState.errors.boardThicknessId && (
               <p className="text-sm text-destructive">
                 {form.formState.errors.boardThicknessId.message}

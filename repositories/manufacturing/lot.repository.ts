@@ -306,7 +306,21 @@ export class LotRepository {
   async findMany(params: { skip: number; limit: number; search?: string }) {
     const where = params.search
       ? {
-          lotNumber: { contains: params.search, mode: "insensitive" as const },
+          OR: [
+            { lotNumber: { contains: params.search, mode: "insensitive" as const } },
+            {
+              models: {
+                some: { modelName: { contains: params.search, mode: "insensitive" as const } },
+              },
+            },
+            {
+              models: {
+                some: {
+                  product: { name: { contains: params.search, mode: "insensitive" as const } },
+                },
+              },
+            },
+          ],
         }
       : undefined;
 

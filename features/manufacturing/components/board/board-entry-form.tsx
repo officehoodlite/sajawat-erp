@@ -13,13 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   createBoardEntrySchema,
   type CreateBoardEntryInput,
@@ -203,22 +197,13 @@ export function BoardEntryForm({
                   className="grid grid-cols-[minmax(160px,1.4fr)_88px_88px_72px_108px_36px] gap-3 border-b px-3 py-3 last:border-b-0"
                 >
                   <div className="space-y-1">
-                    <Select
+                    <SearchableSelect
                       value={form.watch(`rows.${index}.boardInventoryId`) || null}
-                      onValueChange={(v) => form.setValue(`rows.${index}.boardInventoryId`, v ?? "")}
+                      onValueChange={(v) => form.setValue(`rows.${index}.boardInventoryId`, v)}
                       items={selectItems}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select board" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {options?.map((opt) => (
-                          <SelectItem key={opt.id} value={opt.id}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select board"
+                      searchPlaceholder="Search boards..."
+                    />
                     {!isEdit &&
                       !form.watch(`rows.${index}.boardInventoryId`) &&
                       presetLabels[index] && (

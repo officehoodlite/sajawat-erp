@@ -16,13 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   useCatalogProduct,
   useCatalogThicknessOptions,
@@ -385,22 +379,13 @@ function BoardPresetDialog({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label required>Material + thickness</Label>
-            <Select
+            <SearchableSelect
               value={materialId || null}
-              onValueChange={(v) => setMaterialId(v ?? "")}
+              onValueChange={setMaterialId}
               items={options.map((o) => ({ value: o.id, label: o.label }))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select board" />
-              </SelectTrigger>
-              <SelectContent>
-                {options.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Select board"
+              searchPlaceholder="Search boards..."
+            />
           </div>
           <div className="space-y-2">
             {sizes.map((size, index) => {

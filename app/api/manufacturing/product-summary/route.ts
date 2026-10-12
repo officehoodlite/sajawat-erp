@@ -12,7 +12,7 @@ import { findProductSummary } from "@/repositories/manufacturing/product-summary
 
 const querySchema = z.object({
   productId: z.string().min(1).max(64),
-  modelIds: z.array(z.string().min(1).max(64)).max(100),
+  lotIds: z.array(z.string().min(1).max(64)).max(100),
 });
 
 export async function GET(request: NextRequest) {
@@ -40,19 +40,19 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const modelIds = (request.nextUrl.searchParams.get("modelIds") ?? "")
+    const lotIds = (request.nextUrl.searchParams.get("lotIds") ?? "")
       .split(",")
       .map((id) => id.trim())
       .filter(Boolean);
     const parsed = querySchema.safeParse({
       productId: request.nextUrl.searchParams.get("productId") ?? "",
-      modelIds,
+      lotIds,
     });
     if (!parsed.success) {
       return errorResponse(parsed.error.issues[0]?.message ?? "Select a product", 400);
     }
 
-    const data = await findProductSummary(parsed.data.productId, parsed.data.modelIds);
+    const data = await findProductSummary(parsed.data.productId, parsed.data.lotIds);
     if (!data) return errorResponse("Product not found", 404);
     return successResponse(data);
   } catch (error) {

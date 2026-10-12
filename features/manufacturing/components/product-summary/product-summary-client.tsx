@@ -24,6 +24,7 @@ import {
 import { useCatalogProductPicker } from "@/features/catalog/hooks/use-catalog-products";
 import { useProductSummary } from "@/features/manufacturing/hooks/use-product-summary";
 import type { ModelLotMaterialLineDto } from "@/types/dto";
+import { round2 } from "@/utils/board-calculations";
 import { formatNumber } from "@/utils/format";
 
 function formatMaterialLines(lines: ModelLotMaterialLineDto[]) {
@@ -33,16 +34,22 @@ function formatMaterialLines(lines: ModelLotMaterialLineDto[]) {
     .join("\n");
 }
 
+function formatBoardTotal(lines: ModelLotMaterialLineDto[]) {
+  if (lines.length === 0) return "—";
+  const total = round2(lines.reduce((sum, line) => sum + line.total, 0));
+  return `${formatNumber(total)} SQFT`;
+}
+
 export function ProductSummaryClient() {
   const { data: products = [], isLoading: productsLoading } = useCatalogProductPicker();
   const [productId, setProductId] = useState("");
-  const [modelIds, setModelIds] = useState<string[]>([]);
-  const { data, isLoading, isFetching } = useProductSummary(productId, modelIds);
+  const [lotIds, setLotIds] = useState<string[]>([]);
+  const { data, isLoading, isFetching } = useProductSummary(productId, lotIds);
 
-  const toggleModel = (catalogModelId: string, checked: boolean) => {
-    setModelIds((current) => {
-      if (checked) return current.includes(catalogModelId) ? current : [...current, catalogModelId];
-      return current.filter((id) => id !== catalogModelId);
+  const toggleLot = (lotId: string, checked: boolean) => {
+    setLotIds((current) => {
+      if (checked) return current.includes(lotId) ? current : [...current, lotId];
+      return current.filter((id) => id !== lotId);
     });
   };
 
@@ -50,7 +57,7 @@ export function ProductSummaryClient() {
     <ErpPage>
       <PageHeader
         title="Product Summary"
-        description="Pick a product, then the models that appear on lots. Each row is one model on one lot, with the materials used."
+        description="Pick a product, then the lots. Every model of that product on the selected lots is listed with the materials used."
       />
 
       <ErpPageSection title="Selection">
@@ -61,7 +68,7 @@ export function ProductSummaryClient() {
               value={productId || null}
               onValueChange={(value) => {
                 setProductId(value ?? "");
-                setModelIds([]);
+                setLotIds([]);
               }}
               items={products.map((product) => ({ value: product.id, label: product.name }))}
               disabled={productsLoading}
@@ -81,31 +88,26 @@ export function ProductSummaryClient() {
 
           {productId && isLoading ? <Skeleton className="h-16 w-full rounded-xl" /> : null}
 
-          {data && data.models.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              This product has no models on lots yet.
-            </p>
+          {data && data.lots.length === 0 ? (
+            <p className="text-sm text-muted-foreground">This product is not on any lot yet.</p>
           ) : null}
 
-          {data && data.models.length > 0 ? (
+          {data && data.lots.length > 0 ? (
             <div className="space-y-2">
-              <Label required>Models on lots</Label>
+              <Label required>Lots</Label>
               <div className="flex flex-wrap gap-2">
-                {data.models.map((model) => {
-                  const checked = modelIds.includes(model.catalogModelId);
-                  const label = model.size
-                    ? `${model.modelNumber} — ${model.size}`
-                    : model.modelNumber || model.modelName;
+                {data.lots.map((lot) => {
+                  const checked = lotIds.includes(lot.lotId);
                   return (
                     <label
-                      key={model.catalogModelId}
+                      key={lot.lotId}
                       className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-[13px]"
                     >
                       <Checkbox
                         checked={checked}
-                        onCheckedChange={(value) => toggleModel(model.catalogModelId, value === true)}
+                        onCheckedChange={(value) => toggleLot(lot.lotId, value === true)}
                       />
-                      {label}
+                      {lot.lotNumber}
                     </label>
                   );
                 })}
@@ -118,8 +120,8 @@ export function ProductSummaryClient() {
       <ErpPageSection title="Usage by lot">
         {!productId ? (
           <p className="text-sm text-muted-foreground">Select a product to begin.</p>
-        ) : modelIds.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Select at least one model.</p>
+        ) : lotIds.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Select at least one lot.</p>
         ) : isFetching && !data?.rows.length ? (
           <Skeleton className="h-48 w-full rounded-xl" />
         ) : (
@@ -149,7 +151,7 @@ export function ProductSummaryClient() {
                       <TableCell className="whitespace-nowrap">{row.modelNumber || "—"}</TableCell>
                       <TableCell className="whitespace-nowrap">{row.lotNumber}</TableCell>
                       <TableCell>{formatNumber(row.quantity)}</TableCell>
-                      <TableCell className="whitespace-pre-line">{formatMaterialLines(row.boards)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{formatBoardTotal(row.boards)}</TableCell>
                       <TableCell className="whitespace-pre-line">{formatMaterialLines(row.paints)}</TableCell>
                       <TableCell className="whitespace-pre-line">{formatMaterialLines(row.hardware)}</TableCell>
                       <TableCell className="whitespace-pre-line">{formatMaterialLines(row.packing)}</TableCell>
@@ -160,7 +162,7 @@ export function ProductSummaryClient() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={11} className="text-muted-foreground">
-                      No lot usage for the selected models.
+                      No models for this product on the selected lots.
                     </TableCell>
                   </TableRow>
                 )}

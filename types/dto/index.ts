@@ -517,11 +517,9 @@ export interface ProductionLotModelDto {
   remainingCapacityByPart: ProductionPartRemainingDto[];
 }
 
-export interface ProductSummaryModelOptionDto {
-  catalogModelId: string;
-  modelName: string;
-  modelNumber: string;
-  size: string;
+export interface ProductSummaryLotOptionDto {
+  lotId: string;
+  lotNumber: string;
 }
 
 export interface ProductSummaryRowDto {
@@ -543,7 +541,7 @@ export interface ProductSummaryRowDto {
 export interface ProductSummaryDto {
   productId: string;
   productName: string;
-  models: ProductSummaryModelOptionDto[];
+  lots: ProductSummaryLotOptionDto[];
   rows: ProductSummaryRowDto[];
 }
 

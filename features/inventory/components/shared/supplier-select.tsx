@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Label } from "@/components/ui/label";
 import { useSuppliers } from "@/features/inventory/hooks/use-suppliers";
 
@@ -23,26 +17,16 @@ export function SupplierSelect({ value, onChange }: SupplierSelectProps) {
   return (
     <div className="space-y-2">
       <Label>Supplier (optional)</Label>
-      <Select
+      <SearchableSelect
         value={value || NONE_VALUE}
         onValueChange={(v) => onChange(v === NONE_VALUE || !v ? undefined : v)}
         items={[
           { value: NONE_VALUE, label: "None" },
           ...suppliers.map((s) => ({ value: s.id, label: s.name })),
         ]}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Select supplier (optional)" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={NONE_VALUE}>None</SelectItem>
-          {suppliers.map((s) => (
-            <SelectItem key={s.id} value={s.id}>
-              {s.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        placeholder="Select supplier (optional)"
+        searchPlaceholder="Search suppliers..."
+      />
     </div>
   );
 }

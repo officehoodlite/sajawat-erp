@@ -13,13 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   createLotActualBoardEntrySchema,
   type CreateLotActualBoardEntryInput,
@@ -165,24 +159,13 @@ export function ActualBoardEntryForm({
                   className="grid grid-cols-[minmax(140px,1.3fr)_72px_72px_56px_72px_72px_96px_36px] gap-2 border-b px-3 py-3 last:border-b-0"
                 >
                   <div className="space-y-1">
-                    <Select
+                    <SearchableSelect
                       value={form.watch(`rows.${index}.boardThicknessId`) || null}
-                      onValueChange={(v) =>
-                        form.setValue(`rows.${index}.boardThicknessId`, v ?? "")
-                      }
+                      onValueChange={(v) => form.setValue(`rows.${index}.boardThicknessId`, v)}
                       items={selectItems}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select board" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {thicknessOptions?.map((opt) => (
-                          <SelectItem key={opt.id} value={opt.id}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select board"
+                      searchPlaceholder="Search boards..."
+                    />
                     {form.formState.errors.rows?.[index]?.boardThicknessId && (
                       <p className="text-xs text-destructive">
                         {form.formState.errors.rows[index]?.boardThicknessId?.message}

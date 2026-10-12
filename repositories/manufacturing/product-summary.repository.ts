@@ -7,7 +7,7 @@ import { round2 } from "@/utils/board-calculations";
 import type {
   ModelLotMaterialLineDto,
   ProductSummaryDto,
-  ProductSummaryModelOptionDto,
+  ProductSummaryLotOptionDto,
   ProductSummaryRowDto,
 } from "@/types/dto";
 
@@ -40,7 +40,7 @@ function groupLines(
 
 export async function findProductSummary(
   productId: string,
-  modelIds: string[]
+  lotIds: string[]
 ): Promise<ProductSummaryDto | null> {
   const product = await prisma.product.findUnique({
     where: { id: productId },
@@ -70,23 +70,20 @@ export async function findProductSummary(
     orderBy: [{ lot: { createdAt: "desc" } }, { modelName: "asc" }],
   });
 
-  const modelOptions = new Map<string, ProductSummaryModelOptionDto>();
+  const lotOptions = new Map<string, ProductSummaryLotOptionDto>();
   for (const model of manufacturingModels) {
-    if (modelOptions.has(model.catalogModelId)) continue;
-    const parsed = parseCatalogModelName(model.modelName);
-    modelOptions.set(model.catalogModelId, {
-      catalogModelId: model.catalogModelId,
-      modelName: model.modelName,
-      modelNumber: parsed.modelNumber,
-      size: parsed.size,
+    if (lotOptions.has(model.lot.id)) continue;
+    lotOptions.set(model.lot.id, {
+      lotId: model.lot.id,
+      lotNumber: model.lot.lotNumber,
     });
   }
 
-  const selected = new Set(modelIds);
+  const selected = new Set(lotIds);
   const rows: ProductSummaryRowDto[] = [];
 
   for (const model of manufacturingModels) {
-    if (selected.size === 0 || !selected.has(model.catalogModelId)) continue;
+    if (selected.size === 0 || !selected.has(model.lot.id)) continue;
 
     const qty = model.quantity;
     const parsed = parseCatalogModelName(model.modelName);
@@ -158,8 +155,8 @@ export async function findProductSummary(
   return {
     productId: product.id,
     productName: product.name,
-    models: Array.from(modelOptions.values()).sort((a, b) =>
-      a.modelNumber.localeCompare(b.modelNumber)
+    lots: Array.from(lotOptions.values()).sort((a, b) =>
+      a.lotNumber.localeCompare(b.lotNumber, undefined, { numeric: true })
     ),
     rows,
   };

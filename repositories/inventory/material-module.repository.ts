@@ -185,8 +185,14 @@ export class MaterialModuleRepository {
   }
 
   async findFamilies(query: MaterialListQuery) {
-    const where = query.search.trim()
-      ? { name: { contains: query.search.trim(), mode: "insensitive" as const } }
+    const q = query.search.trim();
+    const where = q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" as const } },
+            { products: { some: { name: { contains: q, mode: "insensitive" as const } } } },
+          ],
+        }
       : undefined;
     const skip = (query.page - 1) * query.limit;
     const [items, total] = await Promise.all([
@@ -487,7 +493,14 @@ export class MaterialModuleRepository {
             { invoiceNumber: { contains: query.search.trim(), mode: "insensitive" as const } },
             {
               product: {
-                name: { contains: query.search.trim(), mode: "insensitive" as const },
+                OR: [
+                  { name: { contains: query.search.trim(), mode: "insensitive" as const } },
+                  {
+                    family: {
+                      name: { contains: query.search.trim(), mode: "insensitive" as const },
+                    },
+                  },
+                ],
               },
             },
           ],
@@ -782,7 +795,14 @@ export class MaterialModuleRepository {
             },
             {
               product: {
-                name: { contains: query.search.trim(), mode: "insensitive" as const },
+                OR: [
+                  { name: { contains: query.search.trim(), mode: "insensitive" as const } },
+                  {
+                    family: {
+                      name: { contains: query.search.trim(), mode: "insensitive" as const },
+                    },
+                  },
+                ],
               },
             },
           ],
