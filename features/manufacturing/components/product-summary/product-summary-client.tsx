@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown, Download } from "lucide-react";
 import { ErpPage, ErpPageSection } from "@/components/shared/erp-page";
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -23,21 +26,34 @@ import {
 } from "@/components/ui/table";
 import { useCatalogProductPicker } from "@/features/catalog/hooks/use-catalog-products";
 import { useProductSummary } from "@/features/manufacturing/hooks/use-product-summary";
-import type { ModelLotMaterialLineDto } from "@/types/dto";
+import { downloadCsv } from "@/lib/csv-download";
+import type { ModelLotMaterialLineDto, ProductSummaryRowDto } from "@/types/dto";
 import { round2 } from "@/utils/board-calculations";
 import { formatNumber } from "@/utils/format";
 
-function formatMaterialLines(lines: ModelLotMaterialLineDto[]) {
-  if (lines.length === 0) return "—";
+function perUnitTotal(lines: ModelLotMaterialLineDto[], quantity: number) {
+  if (lines.length === 0 || quantity <= 0) return null;
+  const total = lines.reduce((sum, line) => sum + line.total, 0);
+  return round2(total / quantity);
+}
+
+function formatPerUnit(lines: ModelLotMaterialLineDto[], quantity: number, unit?: string) {
+  const value = perUnitTotal(lines, quantity);
+  if (value == null) return "—";
+  const resolvedUnit = unit ?? lines[0]?.unit ?? "";
+  return resolvedUnit ? `${formatNumber(value)} ${resolvedUnit}` : formatNumber(value);
+}
+
+function formatPerUnitLines(lines: ModelLotMaterialLineDto[], quantity: number) {
+  if (lines.length === 0 || quantity <= 0) return "—";
   return lines
-    .map((line) => `${line.label}: ${formatNumber(line.total)} ${line.unit}`)
+    .map((line) => `${line.label}: ${formatNumber(round2(line.total / quantity))} ${line.unit}`)
     .join("\n");
 }
 
-function formatBoardTotal(lines: ModelLotMaterialLineDto[]) {
-  if (lines.length === 0) return "—";
-  const total = round2(lines.reduce((sum, line) => sum + line.total, 0));
-  return `${formatNumber(total)} SQFT`;
+function materialCell(lines: ModelLotMaterialLineDto[], quantity: number, collapse: boolean) {
+  if (collapse) return formatPerUnit(lines, quantity, "SQFT");
+  return formatPerUnitLines(lines, quantity);
 }
 
 export function ProductSummaryClient() {
@@ -53,16 +69,65 @@ export function ProductSummaryClient() {
     });
   };
 
+  const lotLabel =
+    lotIds.length === 0
+      ? "Select lots"
+      : lotIds.length === 1
+        ? data?.lots.find((lot) => lot.lotId === lotIds[0])?.lotNumber ?? "1 lot"
+        : `${lotIds.length} lots`;
+
+  const exportRows = () => {
+    if (!data?.rows.length) return;
+    const header = [
+      "Name",
+      "Size",
+      "Model",
+      "Lot",
+      "Qty",
+      "Board per qty",
+      "Paint per qty",
+      "Hardware per qty",
+      "Packing per qty",
+      "Edge binding per qty",
+      "Glass per qty",
+    ];
+    const body = data.rows.map((row) => [
+      row.productName,
+      row.size || "",
+      row.modelNumber || row.modelName,
+      row.lotNumber,
+      row.quantity,
+      materialCell(row.boards, row.quantity, true),
+      materialCell(row.paints, row.quantity, false),
+      materialCell(row.hardware, row.quantity, false),
+      materialCell(row.packing, row.quantity, false),
+      materialCell(row.edgeBinding, row.quantity, false),
+      materialCell(row.glass, row.quantity, false),
+    ]);
+    const slug = data.productName.trim() || "product";
+    downloadCsv(`product-summary-${slug}.csv`, [header, ...body]);
+  };
+
   return (
     <ErpPage>
       <PageHeader
         title="Product Summary"
-        description="Pick a product, then the lots. Every model of that product on the selected lots is listed with the materials used."
-      />
+        description="Pick a product and lots. Materials are shown as total used divided by the model quantity."
+      >
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!data?.rows.length}
+          onClick={exportRows}
+        >
+          <Download className="h-4 w-4" />
+          Export
+        </Button>
+      </PageHeader>
 
-      <ErpPageSection title="Selection">
-        <div className="space-y-4">
-          <div className="max-w-sm space-y-2">
+      <ErpPageSection title="Usage by lot">
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <div className="w-full max-w-sm space-y-2">
             <Label required>Product</Label>
             <Select
               value={productId || null}
@@ -86,38 +151,44 @@ export function ProductSummaryClient() {
             </Select>
           </div>
 
-          {productId && isLoading ? <Skeleton className="h-16 w-full rounded-xl" /> : null}
-
-          {data && data.lots.length === 0 ? (
-            <p className="text-sm text-muted-foreground">This product is not on any lot yet.</p>
-          ) : null}
-
-          {data && data.lots.length > 0 ? (
-            <div className="space-y-2">
-              <Label required>Lots</Label>
-              <div className="flex flex-wrap gap-2">
-                {data.lots.map((lot) => {
-                  const checked = lotIds.includes(lot.lotId);
-                  return (
+          <div className="w-full max-w-sm space-y-2">
+            <Label required>Lots</Label>
+            <Popover>
+              <PopoverTrigger
+                disabled={!productId || isLoading}
+                className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-card px-2.5 text-left text-[13px] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span className={lotIds.length === 0 ? "text-muted-foreground" : undefined}>
+                  {productId ? lotLabel : "Select a product first"}
+                </span>
+                <ChevronDown className="size-4 text-muted-foreground" />
+              </PopoverTrigger>
+              <PopoverContent align="start" className="max-h-72 w-72 overflow-y-auto p-2">
+                {data && data.lots.length === 0 ? (
+                  <p className="px-2 py-1.5 text-sm text-muted-foreground">
+                    This product is not on any lot yet.
+                  </p>
+                ) : (
+                  data?.lots.map((lot) => (
                     <label
                       key={lot.lotId}
-                      className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-[13px]"
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
                     >
                       <Checkbox
-                        checked={checked}
+                        checked={lotIds.includes(lot.lotId)}
                         onCheckedChange={(value) => toggleLot(lot.lotId, value === true)}
                       />
                       {lot.lotNumber}
                     </label>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
+                  ))
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
-      </ErpPageSection>
 
-      <ErpPageSection title="Usage by lot">
+        {productId && isLoading ? <Skeleton className="mb-4 h-10 w-full max-w-sm rounded-xl" /> : null}
+
         {!productId ? (
           <p className="text-sm text-muted-foreground">Select a product to begin.</p>
         ) : lotIds.length === 0 ? (
@@ -125,52 +196,70 @@ export function ProductSummaryClient() {
         ) : isFetching && !data?.rows.length ? (
           <Skeleton className="h-48 w-full rounded-xl" />
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Model</TableHead>
-                  <TableHead>Lot</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Board</TableHead>
-                  <TableHead>Paint</TableHead>
-                  <TableHead>Hardware</TableHead>
-                  <TableHead>Packing</TableHead>
-                  <TableHead>Edge binding</TableHead>
-                  <TableHead>Glass</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.rows.length ? (
-                  data.rows.map((row, index) => (
-                    <TableRow key={`${row.lotId}-${row.modelName}-${index}`}>
-                      <TableCell className="whitespace-nowrap">{row.productName}</TableCell>
-                      <TableCell className="whitespace-nowrap">{row.size || "—"}</TableCell>
-                      <TableCell className="whitespace-nowrap">{row.modelNumber || "—"}</TableCell>
-                      <TableCell className="whitespace-nowrap">{row.lotNumber}</TableCell>
-                      <TableCell>{formatNumber(row.quantity)}</TableCell>
-                      <TableCell className="whitespace-nowrap">{formatBoardTotal(row.boards)}</TableCell>
-                      <TableCell className="whitespace-pre-line">{formatMaterialLines(row.paints)}</TableCell>
-                      <TableCell className="whitespace-pre-line">{formatMaterialLines(row.hardware)}</TableCell>
-                      <TableCell className="whitespace-pre-line">{formatMaterialLines(row.packing)}</TableCell>
-                      <TableCell className="whitespace-pre-line">{formatMaterialLines(row.edgeBinding)}</TableCell>
-                      <TableCell className="whitespace-pre-line">{formatMaterialLines(row.glass)}</TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={11} className="text-muted-foreground">
-                      No models for this product on the selected lots.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <SummaryTable rows={data?.rows ?? []} />
         )}
       </ErpPageSection>
     </ErpPage>
+  );
+}
+
+function SummaryTable({ rows }: { rows: ProductSummaryRowDto[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Size</TableHead>
+            <TableHead>Model</TableHead>
+            <TableHead>Lot</TableHead>
+            <TableHead>Qty</TableHead>
+            <TableHead>Board / qty</TableHead>
+            <TableHead>Paint / qty</TableHead>
+            <TableHead>Hardware / qty</TableHead>
+            <TableHead>Packing / qty</TableHead>
+            <TableHead>Edge binding / qty</TableHead>
+            <TableHead>Glass / qty</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length ? (
+            rows.map((row, index) => (
+              <TableRow key={`${row.lotId}-${row.modelName}-${index}`}>
+                <TableCell className="whitespace-nowrap">{row.productName}</TableCell>
+                <TableCell className="whitespace-nowrap">{row.size || "—"}</TableCell>
+                <TableCell className="whitespace-nowrap">{row.modelNumber || "—"}</TableCell>
+                <TableCell className="whitespace-nowrap">{row.lotNumber}</TableCell>
+                <TableCell>{formatNumber(row.quantity)}</TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {materialCell(row.boards, row.quantity, true)}
+                </TableCell>
+                <TableCell className="whitespace-pre-line">
+                  {materialCell(row.paints, row.quantity, false)}
+                </TableCell>
+                <TableCell className="whitespace-pre-line">
+                  {materialCell(row.hardware, row.quantity, false)}
+                </TableCell>
+                <TableCell className="whitespace-pre-line">
+                  {materialCell(row.packing, row.quantity, false)}
+                </TableCell>
+                <TableCell className="whitespace-pre-line">
+                  {materialCell(row.edgeBinding, row.quantity, false)}
+                </TableCell>
+                <TableCell className="whitespace-pre-line">
+                  {materialCell(row.glass, row.quantity, false)}
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={11} className="text-muted-foreground">
+                No models for this product on the selected lots.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
