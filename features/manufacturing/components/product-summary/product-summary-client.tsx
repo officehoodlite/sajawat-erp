@@ -44,16 +44,28 @@ function formatPerUnit(lines: ModelLotMaterialLineDto[], quantity: number, unit?
   return resolvedUnit ? `${formatNumber(value)} ${resolvedUnit}` : formatNumber(value);
 }
 
-function formatPerUnitLines(lines: ModelLotMaterialLineDto[], quantity: number) {
+function formatPerUnitByUnit(lines: ModelLotMaterialLineDto[], quantity: number) {
   if (lines.length === 0 || quantity <= 0) return "—";
-  return lines
-    .map((line) => `${line.label}: ${formatNumber(round2(line.total / quantity))} ${line.unit}`)
+  const byUnit = new Map<string, { displayUnit: string; total: number }>();
+  for (const line of lines) {
+    const unitKey = line.unit.trim().toUpperCase();
+    const perUnit = line.total / quantity;
+    const existing = byUnit.get(unitKey);
+    if (existing) {
+      existing.total = round2(existing.total + perUnit);
+    } else {
+      byUnit.set(unitKey, { displayUnit: line.unit.trim(), total: round2(perUnit) });
+    }
+  }
+  return Array.from(byUnit.values())
+    .sort((a, b) => a.displayUnit.localeCompare(b.displayUnit))
+    .map(({ displayUnit, total }) => `${formatNumber(total)} ${displayUnit}`)
     .join("\n");
 }
 
-function materialCell(lines: ModelLotMaterialLineDto[], quantity: number, collapse: boolean) {
-  if (collapse) return formatPerUnit(lines, quantity, "SQFT");
-  return formatPerUnitLines(lines, quantity);
+function materialCell(lines: ModelLotMaterialLineDto[], quantity: number, kind: "board" | "byUnit") {
+  if (kind === "board") return formatPerUnit(lines, quantity, "SQFT");
+  return formatPerUnitByUnit(lines, quantity);
 }
 
 export function ProductSummaryClient() {
@@ -97,12 +109,12 @@ export function ProductSummaryClient() {
       row.modelNumber || row.modelName,
       row.lotNumber,
       row.quantity,
-      materialCell(row.boards, row.quantity, true),
-      materialCell(row.paints, row.quantity, false),
-      materialCell(row.hardware, row.quantity, false),
-      materialCell(row.packing, row.quantity, false),
-      materialCell(row.edgeBinding, row.quantity, false),
-      materialCell(row.glass, row.quantity, false),
+      materialCell(row.boards, row.quantity, "board"),
+      materialCell(row.paints, row.quantity, "byUnit"),
+      materialCell(row.hardware, row.quantity, "byUnit"),
+      materialCell(row.packing, row.quantity, "byUnit"),
+      materialCell(row.edgeBinding, row.quantity, "byUnit"),
+      materialCell(row.glass, row.quantity, "byUnit"),
     ]);
     const slug = data.productName.trim() || "product";
     downloadCsv(`product-summary-${slug}.csv`, [header, ...body]);
@@ -232,22 +244,22 @@ function SummaryTable({ rows }: { rows: ProductSummaryRowDto[] }) {
                 <TableCell className="whitespace-nowrap">{row.lotNumber}</TableCell>
                 <TableCell>{formatNumber(row.quantity)}</TableCell>
                 <TableCell className="whitespace-nowrap">
-                  {materialCell(row.boards, row.quantity, true)}
+                  {materialCell(row.boards, row.quantity, "board")}
                 </TableCell>
                 <TableCell className="whitespace-pre-line">
-                  {materialCell(row.paints, row.quantity, false)}
+                  {materialCell(row.paints, row.quantity, "byUnit")}
                 </TableCell>
                 <TableCell className="whitespace-pre-line">
-                  {materialCell(row.hardware, row.quantity, false)}
+                  {materialCell(row.hardware, row.quantity, "byUnit")}
                 </TableCell>
                 <TableCell className="whitespace-pre-line">
-                  {materialCell(row.packing, row.quantity, false)}
+                  {materialCell(row.packing, row.quantity, "byUnit")}
                 </TableCell>
                 <TableCell className="whitespace-pre-line">
-                  {materialCell(row.edgeBinding, row.quantity, false)}
+                  {materialCell(row.edgeBinding, row.quantity, "byUnit")}
                 </TableCell>
                 <TableCell className="whitespace-pre-line">
-                  {materialCell(row.glass, row.quantity, false)}
+                  {materialCell(row.glass, row.quantity, "byUnit")}
                 </TableCell>
               </TableRow>
             ))
