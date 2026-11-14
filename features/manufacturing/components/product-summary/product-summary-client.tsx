@@ -25,8 +25,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCatalogProductPicker } from "@/features/catalog/hooks/use-catalog-products";
-import { useProductSummary } from "@/features/manufacturing/hooks/use-product-summary";
+import {
+  useProductSummary,
+  type ProductSummarySelectionMode,
+} from "@/features/manufacturing/hooks/use-product-summary";
 import { downloadCsv } from "@/lib/csv-download";
+import { parseCatalogModelName } from "@/lib/model-name";
 import type { ModelLotMaterialLineDto, ProductSummaryRowDto } from "@/types/dto";
 import { round2 } from "@/utils/board-calculations";
 import { formatNumber } from "@/utils/format";
@@ -68,11 +72,23 @@ function materialCell(lines: ModelLotMaterialLineDto[], quantity: number, kind: 
   return formatPerUnitByUnit(lines, quantity);
 }
 
+function catalogModelLabel(modelName: string) {
+  const { modelNumber, size } = parseCatalogModelName(modelName);
+  return size ? `${modelNumber} — ${size}` : modelNumber || modelName;
+}
+
 export function ProductSummaryClient() {
   const { data: products = [], isLoading: productsLoading } = useCatalogProductPicker();
   const [productId, setProductId] = useState("");
+  const [selectionMode, setSelectionMode] = useState<ProductSummarySelectionMode>("lot");
   const [lotIds, setLotIds] = useState<string[]>([]);
-  const { data, isLoading, isFetching } = useProductSummary(productId, lotIds);
+  const [catalogModelIds, setCatalogModelIds] = useState<string[]>([]);
+  const { data, isLoading, isFetching } = useProductSummary(
+    productId,
+    selectionMode,
+    lotIds,
+    catalogModelIds
+  );
 
   const toggleLot = (lotId: string, checked: boolean) => {
     setLotIds((current) => {
@@ -81,12 +97,31 @@ export function ProductSummaryClient() {
     });
   };
 
+  const toggleCatalogModel = (id: string, checked: boolean) => {
+    setCatalogModelIds((current) => {
+      if (checked) return current.includes(id) ? current : [...current, id];
+      return current.filter((item) => item !== id);
+    });
+  };
+
+  const hasSelection =
+    selectionMode === "lot" ? lotIds.length > 0 : catalogModelIds.length > 0;
+
   const lotLabel =
     lotIds.length === 0
       ? "Select lots"
       : lotIds.length === 1
         ? data?.lots.find((lot) => lot.lotId === lotIds[0])?.lotNumber ?? "1 lot"
         : `${lotIds.length} lots`;
+
+  const modelLabel =
+    catalogModelIds.length === 0
+      ? "Select models"
+      : catalogModelIds.length === 1
+        ? catalogModelLabel(
+            data?.models.find((m) => m.catalogModelId === catalogModelIds[0])?.modelName ?? ""
+          ) || "1 model"
+        : `${catalogModelIds.length} models`;
 
   const exportRows = () => {
     if (!data?.rows.length) return;
@@ -124,7 +159,7 @@ export function ProductSummaryClient() {
     <ErpPage>
       <PageHeader
         title="Product Summary"
-        description="Pick a product and lots. Materials are shown as total used divided by the model quantity."
+        description="Pick a product, then filter by lot or model. Materials are shown as total used divided by the model quantity."
       >
         <Button
           type="button"
@@ -137,7 +172,7 @@ export function ProductSummaryClient() {
         </Button>
       </PageHeader>
 
-      <ErpPageSection title="Usage by lot">
+      <ErpPageSection title="Usage details">
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <div className="w-full max-w-sm space-y-2">
             <Label required>Product</Label>
@@ -146,6 +181,7 @@ export function ProductSummaryClient() {
               onValueChange={(value) => {
                 setProductId(value ?? "");
                 setLotIds([]);
+                setCatalogModelIds([]);
               }}
               items={products.map((product) => ({ value: product.id, label: product.name }))}
               disabled={productsLoading}
@@ -163,48 +199,119 @@ export function ProductSummaryClient() {
             </Select>
           </div>
 
-          <div className="w-full max-w-sm space-y-2">
-            <Label required>Lots</Label>
-            <Popover>
-              <PopoverTrigger
-                disabled={!productId || isLoading}
-                className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-card px-2.5 text-left text-[13px] disabled:cursor-not-allowed disabled:opacity-50"
+          <div className="space-y-2">
+            <Label>View by</Label>
+            <div className="flex flex-nowrap gap-1">
+              <Button
+                type="button"
+                variant={selectionMode === "lot" ? "default" : "outline"}
+                className="whitespace-nowrap px-3"
+                disabled={!productId}
+                onClick={() => {
+                  setSelectionMode("lot");
+                  setCatalogModelIds([]);
+                }}
               >
-                <span className={lotIds.length === 0 ? "text-muted-foreground" : undefined}>
-                  {productId ? lotLabel : "Select a product first"}
-                </span>
-                <ChevronDown className="size-4 text-muted-foreground" />
-              </PopoverTrigger>
-              <PopoverContent align="start" className="max-h-72 w-72 overflow-y-auto p-2">
-                {data && data.lots.length === 0 ? (
-                  <p className="px-2 py-1.5 text-sm text-muted-foreground">
-                    This product is not on any lot yet.
-                  </p>
-                ) : (
-                  data?.lots.map((lot) => (
-                    <label
-                      key={lot.lotId}
-                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
-                    >
-                      <Checkbox
-                        checked={lotIds.includes(lot.lotId)}
-                        onCheckedChange={(value) => toggleLot(lot.lotId, value === true)}
-                      />
-                      {lot.lotNumber}
-                    </label>
-                  ))
-                )}
-              </PopoverContent>
-            </Popover>
+                Lot
+              </Button>
+              <Button
+                type="button"
+                variant={selectionMode === "model" ? "default" : "outline"}
+                className="whitespace-nowrap px-3"
+                disabled={!productId}
+                onClick={() => {
+                  setSelectionMode("model");
+                  setLotIds([]);
+                }}
+              >
+                Model
+              </Button>
+            </div>
           </div>
+
+          {selectionMode === "lot" ? (
+            <div className="w-full max-w-sm space-y-2">
+              <Label required>Lots</Label>
+              <Popover>
+                <PopoverTrigger
+                  disabled={!productId || isLoading}
+                  className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-card px-2.5 text-left text-[13px] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className={lotIds.length === 0 ? "text-muted-foreground" : undefined}>
+                    {productId ? lotLabel : "Select a product first"}
+                  </span>
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                </PopoverTrigger>
+                <PopoverContent align="start" className="max-h-72 w-72 overflow-y-auto p-2">
+                  {data && data.lots.length === 0 ? (
+                    <p className="px-2 py-1.5 text-sm text-muted-foreground">
+                      This product is not on any lot yet.
+                    </p>
+                  ) : (
+                    data?.lots.map((lot) => (
+                      <label
+                        key={lot.lotId}
+                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
+                      >
+                        <Checkbox
+                          checked={lotIds.includes(lot.lotId)}
+                          onCheckedChange={(value) => toggleLot(lot.lotId, value === true)}
+                        />
+                        {lot.lotNumber}
+                      </label>
+                    ))
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+          ) : (
+            <div className="w-full max-w-sm space-y-2">
+              <Label required>Models</Label>
+              <Popover>
+                <PopoverTrigger
+                  disabled={!productId || isLoading}
+                  className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-card px-2.5 text-left text-[13px] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className={catalogModelIds.length === 0 ? "text-muted-foreground" : undefined}>
+                    {productId ? modelLabel : "Select a product first"}
+                  </span>
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                </PopoverTrigger>
+                <PopoverContent align="start" className="max-h-72 w-80 overflow-y-auto p-2">
+                  {data && data.models.length === 0 ? (
+                    <p className="px-2 py-1.5 text-sm text-muted-foreground">
+                      This product is not on any lot yet.
+                    </p>
+                  ) : (
+                    data?.models.map((model) => (
+                      <label
+                        key={model.catalogModelId}
+                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
+                      >
+                        <Checkbox
+                          checked={catalogModelIds.includes(model.catalogModelId)}
+                          onCheckedChange={(value) =>
+                            toggleCatalogModel(model.catalogModelId, value === true)
+                          }
+                        />
+                        {catalogModelLabel(model.modelName)}
+                      </label>
+                    ))
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
 
         {productId && isLoading ? <Skeleton className="mb-4 h-10 w-full max-w-sm rounded-xl" /> : null}
 
         {!productId ? (
           <p className="text-sm text-muted-foreground">Select a product to begin.</p>
-        ) : lotIds.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Select at least one lot.</p>
+        ) : !hasSelection ? (
+          <p className="text-sm text-muted-foreground">
+            {selectionMode === "lot" ? "Select at least one lot." : "Select at least one model."}
+          </p>
         ) : isFetching && !data?.rows.length ? (
           <Skeleton className="h-48 w-full rounded-xl" />
         ) : (
@@ -266,7 +373,7 @@ function SummaryTable({ rows }: { rows: ProductSummaryRowDto[] }) {
           ) : (
             <TableRow>
               <TableCell colSpan={11} className="text-muted-foreground">
-                No models for this product on the selected lots.
+                No matching rows for this product and filter.
               </TableCell>
             </TableRow>
           )}

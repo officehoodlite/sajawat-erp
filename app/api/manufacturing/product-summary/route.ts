@@ -13,6 +13,7 @@ import { findProductSummary } from "@/repositories/manufacturing/product-summary
 const querySchema = z.object({
   productId: z.string().min(1).max(64),
   lotIds: z.array(z.string().min(1).max(64)).max(100),
+  catalogModelIds: z.array(z.string().min(1).max(64)).max(100),
 });
 
 export async function GET(request: NextRequest) {
@@ -44,15 +45,23 @@ export async function GET(request: NextRequest) {
       .split(",")
       .map((id) => id.trim())
       .filter(Boolean);
+    const catalogModelIds = (request.nextUrl.searchParams.get("catalogModelIds") ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
     const parsed = querySchema.safeParse({
       productId: request.nextUrl.searchParams.get("productId") ?? "",
       lotIds,
+      catalogModelIds,
     });
     if (!parsed.success) {
       return errorResponse(parsed.error.issues[0]?.message ?? "Select a product", 400);
     }
 
-    const data = await findProductSummary(parsed.data.productId, parsed.data.lotIds);
+    const data = await findProductSummary(parsed.data.productId, {
+      lotIds: parsed.data.lotIds,
+      catalogModelIds: parsed.data.catalogModelIds,
+    });
     if (!data) return errorResponse("Product not found", 404);
     return successResponse(data);
   } catch (error) {

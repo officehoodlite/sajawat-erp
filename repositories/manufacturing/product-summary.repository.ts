@@ -8,6 +8,7 @@ import type {
   ModelLotMaterialLineDto,
   ProductSummaryDto,
   ProductSummaryLotOptionDto,
+  ProductSummaryModelOptionDto,
   ProductSummaryRowDto,
 } from "@/types/dto";
 
@@ -40,8 +41,9 @@ function groupLines(
 
 export async function findProductSummary(
   productId: string,
-  lotIds: string[]
+  filters: { lotIds: string[]; catalogModelIds: string[] }
 ): Promise<ProductSummaryDto | null> {
+  const { lotIds, catalogModelIds } = filters;
   const product = await prisma.product.findUnique({
     where: { id: productId },
     select: { id: true, name: true },
@@ -71,19 +73,30 @@ export async function findProductSummary(
   });
 
   const lotOptions = new Map<string, ProductSummaryLotOptionDto>();
+  const modelOptions = new Map<string, ProductSummaryModelOptionDto>();
   for (const model of manufacturingModels) {
-    if (lotOptions.has(model.lot.id)) continue;
-    lotOptions.set(model.lot.id, {
-      lotId: model.lot.id,
-      lotNumber: model.lot.lotNumber,
-    });
+    if (!lotOptions.has(model.lot.id)) {
+      lotOptions.set(model.lot.id, {
+        lotId: model.lot.id,
+        lotNumber: model.lot.lotNumber,
+      });
+    }
+    if (!modelOptions.has(model.catalogModelId)) {
+      modelOptions.set(model.catalogModelId, {
+        catalogModelId: model.catalogModelId,
+        modelName: model.modelName,
+      });
+    }
   }
 
-  const selected = new Set(lotIds);
+  const selectedLots = new Set(lotIds);
+  const selectedModels = new Set(catalogModelIds);
   const rows: ProductSummaryRowDto[] = [];
 
   for (const model of manufacturingModels) {
-    if (selected.size === 0 || !selected.has(model.lot.id)) continue;
+    const matchLot = selectedLots.size > 0 && selectedLots.has(model.lot.id);
+    const matchModel = selectedModels.size > 0 && selectedModels.has(model.catalogModelId);
+    if (!matchLot && !matchModel) continue;
 
     const qty = model.quantity;
     const parsed = parseCatalogModelName(model.modelName);
@@ -158,6 +171,13 @@ export async function findProductSummary(
     lots: Array.from(lotOptions.values()).sort((a, b) =>
       a.lotNumber.localeCompare(b.lotNumber, undefined, { numeric: true })
     ),
+    models: Array.from(modelOptions.values()).sort((a, b) => {
+      const pa = parseCatalogModelName(a.modelName);
+      const pb = parseCatalogModelName(b.modelName);
+      const num = pa.modelNumber.localeCompare(pb.modelNumber);
+      if (num !== 0) return num;
+      return pa.size.localeCompare(pb.size);
+    }),
     rows,
   };
 }

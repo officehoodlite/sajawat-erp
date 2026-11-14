@@ -522,6 +522,11 @@ export interface ProductSummaryLotOptionDto {
   lotNumber: string;
 }
 
+export interface ProductSummaryModelOptionDto {
+  catalogModelId: string;
+  modelName: string;
+}
+
 export interface ProductSummaryRowDto {
   productName: string;
   modelNumber: string;
@@ -542,6 +547,7 @@ export interface ProductSummaryDto {
   productId: string;
   productName: string;
   lots: ProductSummaryLotOptionDto[];
+  models: ProductSummaryModelOptionDto[];
   rows: ProductSummaryRowDto[];
 }
 
